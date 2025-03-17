@@ -1,5 +1,5 @@
 """Functions to support plotting within the model evaluation module."""
-
+import os
 from matplotlib.lines import Line2D
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -103,6 +103,10 @@ def plot_time_series(
     None
         Saves one plot per time series to output_dir.
     """
+    # Create output directory if it does not exist
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
+
     if site_list is not None:
         num_sites = len(site_list)
     else:
@@ -177,6 +181,10 @@ def plot_compare_scatter(
     None
         Saves one plot to output_dir.
     """
+    # Create output directory if it does not exist
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
+
     # Calculate mean values per site
     obs_mean = pd.DataFrame(obs_data_df.iloc[:, 1:].mean(axis=0)).reset_index()
     obs_mean.columns = ["site_id", "obs_mean"]
@@ -230,6 +238,10 @@ def plot_metric_map(mask, metrics_df, variable, metrics_list, output_dir="."):
     None
         Saves one plot per metric in metrics_list to output_dir.
     """
+    # Create output directory if it does not exist
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
+
     for metric in metrics_list:
 
         # Expand for full list of metrics
