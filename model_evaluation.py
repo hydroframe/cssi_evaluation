@@ -28,7 +28,8 @@ METRICS_DICT = {
     "pearson_r": evaluation_metrics.pearson_R,
     "nse": evaluation_metrics.NSE,
     "kge": evaluation_metrics.KGE,
-    "bias_from_r": evaluation_metrics.bias_from_R
+    "bias_from_r": evaluation_metrics.bias_from_R,
+    "condon": evaluation_metrics.condon,
 }
 
 DATE_SUFFIX = datetime.date.today().strftime("%Y%m%d")
@@ -495,11 +496,30 @@ def calculate_metrics(
 
         # Calculate metrics
         for m in metrics_list:
-
             # too few observations to compare
             if len(pf_data) < 2:
                 metrics_df.loc[metrics_df["site_id"] == site_id, f"{m}"] = np.nan
 
+            elif m == "condon":
+                try:
+                    assert ("abs_rel_bias" in METRICS_DICT) and (
+                        "spearman_rho" in METRICS_DICT
+                    )
+                except Exception as exc:
+                    raise ValueError(
+                        f"""Please include 'abs_rel_bias' and 'spearman_rho' in the metrics list
+                        in order to calculate the Condon category."""
+                    ) from exc
+                metrics_df.loc[metrics_df["site_id"] == site_id, f"{m}"] = METRICS_DICT[
+                    m
+                ](
+                    metrics_df.loc[
+                        metrics_df["site_id"] == site_id, "abs_rel_bias"
+                    ].values[0],
+                    metrics_df.loc[
+                        metrics_df["site_id"] == site_id, "spearman_rho"
+                    ].values[0],
+                )
             else:
                 metrics_df.loc[metrics_df["site_id"] == site_id, f"{m}"] = METRICS_DICT[
                     m

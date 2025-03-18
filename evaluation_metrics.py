@@ -13,6 +13,7 @@ Evaluation Metrics
 - Percent Bias
 - Absolute Relative Bias
 - Total Difference
+- Condon cateogory (low/high bias, poor/good shape)
 """
 
 # pylint: disable=C0103
@@ -273,3 +274,34 @@ def total_difference(x, y):
     float or ndarray of floats
     """
     return np.sum(y) - np.sum(x)
+
+
+def condon(abs_rel_bias, srho):
+    """
+    Calculate the Condon category (low/high bias, poor/good shape).
+
+    Parameters
+    ----------
+    abs_rel_bias : Absolute relative bias
+    srho: Spearman's rho
+
+    Returns
+    -------
+    String of categorical mapping
+    """
+    if abs_rel_bias < 1:
+        if srho >= 0.5:
+            return "Low bias, good shape"
+        elif srho < 0.5:
+            return "Low bias, poor shape"
+        else:
+            return "Undefined"
+    elif abs_rel_bias >= 1:
+        if srho >= 0.5:
+            return "High bias, good shape"
+        elif srho < 0.5:
+            return "High bias, poor shape"
+        else:
+            return "Undefined"
+    else:
+        return "Undefined"
