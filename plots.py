@@ -15,6 +15,20 @@ SITE_COLORS = {
     "flux tower": "orange",
 }
 
+CONDON_COLORS = {
+    "Low bias, good shape": (0 / 255, 128 / 255, 0 / 255),
+    "High bias, good shape": (0, 0, 1),
+    "Low bias, poor shape": (138 / 255, 43 / 255, 226 / 255),
+    "High bias, poor shape": (187 / 255, 34 / 255, 34 / 255),
+}
+CONDON_LABELS = [
+    "Low bias, good shape",
+    "High bias, good shape",
+    "Low bias, poor shape",
+    "High bias, poor shape",
+]
+
+
 STATES_SHP = "/hydrodata/national_mapping/NaturalEarth/US_states.shp"
 
 font_prop = fm.FontProperties(fname="Roboto-Regular.ttf", size=7.9)
@@ -243,7 +257,6 @@ def plot_metric_map(mask, metrics_df, variable, metrics_list, output_dir="."):
         os.makedirs(output_dir)
 
     for metric in metrics_list:
-
         # Expand for full list of metrics
         if metric in ["rmse", "mse", "percent_bias", "abs_rel_bias"]:
             metric_cmap = "Oranges"
@@ -253,6 +266,8 @@ def plot_metric_map(mask, metrics_df, variable, metrics_list, output_dir="."):
             metric_cmap = "RdYlGn"
         elif metric in ["bias", "total_difference"]:
             metric_cmap = "RdYlBu"
+        elif metric == "condon":
+            metric_cmap = CONDON_COLORS
         else:
             raise ValueError(
                 f"The metric {metric} is not currently supported. Please reach out to explore how we might add support for it."
@@ -260,15 +275,217 @@ def plot_metric_map(mask, metrics_df, variable, metrics_list, output_dir="."):
 
         fig, ax = plt.subplots(1, 1, figsize=(8, 8))
 
-        ax.imshow(mask, origin="lower", cmap="Greys_r", alpha=0.1)
-        points = ax.scatter(
-            metrics_df["domain_i"],
-            metrics_df["domain_j"],
-            c=metrics_df[metric],
-            s=20,
-            cmap=metric_cmap,
-        )
-        plt.colorbar(points, label=metric, shrink=0.75)
+        if metric == "condon":
+            ax.imshow(mask, origin="lower", cmap="Greys_r", alpha=0.1)
+            points = ax.scatter(
+                metrics_df["domain_i"],
+                metrics_df["domain_j"],
+                c=metrics_df[metric].map(metric_cmap),
+                s=20,
+            )
+            # add categorical legend
+            custom = [
+                Line2D(
+                    [],
+                    [],
+                    marker=".",
+                    color=metric_cmap["Low bias, good shape"],
+                    linestyle="None",
+                ),
+                Line2D(
+                    [],
+                    [],
+                    marker=".",
+                    color=metric_cmap["High bias, good shape"],
+                    linestyle="None",
+                ),
+                Line2D(
+                    [],
+                    [],
+                    marker=".",
+                    color=metric_cmap["Low bias, poor shape"],
+                    linestyle="None",
+                ),
+                Line2D(
+                    [],
+                    [],
+                    marker=".",
+                    color=metric_cmap["High bias, poor shape"],
+                    linestyle="None",
+                ),
+            ]
+            legend = ax.legend(
+                handles=custom,
+                labels=CONDON_LABELS,
+                loc="lower left",
+                markerscale=1,
+                frameon=False,
+                borderpad=0,
+                labelspacing=0.4,
+            )
+            ax.add_artist(legend)
+
+        else:
+            ax.imshow(mask, origin="lower", cmap="Greys_r", alpha=0.1)
+            points = ax.scatter(
+                metrics_df["domain_i"],
+                metrics_df["domain_j"],
+                c=metrics_df[metric],
+                s=20,
+                cmap=metric_cmap,
+            )
+            plt.colorbar(points, label=metric, shrink=0.75)
 
         plt.title(f"{variable} {metric}")
         plt.savefig(f"{output_dir}/{variable}_map_{metric}.png", bbox_inches="tight")
+
+
+def plot_condon_diagram(metrics_df, variable, output_dir="."):
+    """
+    Create a Condon diagram.
+
+    Parameters
+    ----------
+    metrics_df : DataFrame
+        DataFrame containing one row per site and one column per calculated metric. Contains
+        additional site attribute columns for lat/lon and domain grid location. Must include
+        'condon', 'spearman_rho', and 'abs_rel_bias' for this plot.
+    variable : str
+        Type of variable being compared and plotted (ie. 'streamflow', 'water_table_depth', 'swe')
+    output_dir : str; default="."
+        String path to where plots should be saved. Default is current working directory.
+
+    Returns
+    -------
+    None
+        Saves plot to output_dir.
+    """
+    # Create output directory if it does not exist
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
+
+    df_plot = metrics_df[metrics_df["condon"] != "Undefined"]
+
+    fig, ax = plt.subplots(figsize=(6, 5))
+
+    ax.scatter(
+        df_plot["abs_rel_bias"],
+        df_plot["spearman_rho"],
+        c=df_plot["condon"].map(CONDON_COLORS),
+        s=4,
+        zorder=1,
+        alpha=0.4,
+    )
+
+    custom = [
+        Line2D(
+            [],
+            [],
+            marker=".",
+            color=CONDON_COLORS["Low bias, good shape"],
+            linestyle="None",
+        ),
+        Line2D(
+            [],
+            [],
+            marker=".",
+            color=CONDON_COLORS["High bias, good shape"],
+            linestyle="None",
+        ),
+        Line2D(
+            [],
+            [],
+            marker=".",
+            color=CONDON_COLORS["Low bias, poor shape"],
+            linestyle="None",
+        ),
+        Line2D(
+            [],
+            [],
+            marker=".",
+            color=CONDON_COLORS["High bias, poor shape"],
+            linestyle="None",
+        ),
+    ]
+    legend = ax.legend(
+        handles=custom,
+        labels=CONDON_LABELS,
+        loc=8,
+        markerscale=1,
+        frameon=False,
+        borderpad=0,
+        labelspacing=0.4,
+    )
+    ax.add_artist(legend)
+
+    ax.vlines(1, -1, 1, colors="k")
+    ax.hlines(0.5, 0, 10, colors="k")
+    ax.set_xlabel("Absolute Relative Bias", fontsize=12)
+    ax.set_ylabel("Spearman's Rho", fontsize=12)
+    ax.set_xlim(0, 10)
+    ax.set_ylim(-1, 1)
+    ax.set_xticks([0, 2, 4, 6, 8, 10])
+    ax.set_yticks([-1.0, -0.5, 0, 0.5, 1])
+    ax.tick_params(axis="both", labelsize=12)
+
+    # Add text for the percentage in each category
+    total_obs = df_plot.shape[0]
+    ax.text(
+        0,
+        0.9,
+        str(
+            round(
+                df_plot[df_plot["condon"] == "Low bias, good shape"].shape[0]
+                / total_obs
+            )
+            * 100
+        )
+        + "%",
+        weight="bold",
+        fontsize=12,
+    )
+    ax.text(
+        9.3,
+        0.9,
+        str(
+            round(
+                df_plot[df_plot["condon"] == "High bias, good shape"].shape[0]
+                / total_obs
+            )
+            * 100
+        )
+        + "%",
+        weight="bold",
+        fontsize=12,
+    )
+    ax.text(
+        0,
+        -1,
+        str(
+            round(
+                df_plot[df_plot["condon"] == "Low bias, poor shape"].shape[0]
+                / total_obs
+            )
+            * 100
+        )
+        + "%",
+        weight="bold",
+        fontsize=12,
+    )
+    ax.text(
+        9.3,
+        -1,
+        str(
+            round(
+                df_plot[df_plot["condon"] == "High bias, poor shape"].shape[0]
+                / total_obs
+            )
+            * 100
+        )
+        + "%",
+        weight="bold",
+        fontsize=12,
+    )
+
+    plt.title(f"{variable.capitalize()} Performance Category")
+    plt.savefig(f"{output_dir}/{variable}_condon_diagram.png", bbox_inches="tight")
