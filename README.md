@@ -13,6 +13,7 @@ Supported variables:
   - 'streamflow' (USGS)
   - 'water_table_depth' (USGS)
   - 'swe' (SNOTEL)
+  - 'latent_heat' (AmeriFlux) 
 
 Supported metrics:
   - 'r2': Correlation of determination

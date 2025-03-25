@@ -169,10 +169,10 @@ def get_observations(
         requested time range. One column per site and one row per timestep.
     """
     try:
-        assert variable in ["streamflow", "water_table_depth", "swe", "et"]
+        assert variable in ["streamflow", "water_table_depth", "swe", "latent_heat"]
     except Exception as exc:
         raise ValueError(
-            f"{variable} is not supported. Supported variables include: 'streamflow', 'water_table_depth', 'swe', 'et'."
+            f"{variable} is not supported. Supported variables include: 'streamflow', 'water_table_depth', 'swe', 'latent_heat'."
         ) from exc
 
     utils.check_mask_shape(mask, ij_bounds)
@@ -191,14 +191,14 @@ def get_observations(
             kwargs["dataset"] = "usgs_nwis"
         elif variable == "swe":
             kwargs["dataset"] = "usda_nrcs"
-        elif variable == "et":
+        elif variable == "latent_heat":
             kwargs["dataset"] = "ameriflux"
     if kwargs.get("aggregation") is None:
         if variable in ["streamflow", "water_table_depth"]:
             kwargs["aggregation"] = "mean"
         elif variable == "swe":
             kwargs["aggregation"] = "sod"
-        elif variable == "et":
+        elif variable == "latent_heat":
             kwargs["aggregation"] = "sum"
 
     # Query site metadata for the CONUS grid bounds
@@ -406,11 +406,22 @@ def get_parflow_output(
                 glob(f"{parflow_output_dir}/{parflow_runname}.out.clm_output.*.C.pfb")
             )
             clm = pf.read_pfb(clm_files[t - 1])
-            pf_variable = clm[10, :, :]  # SWE is the 10th layer in CLM files
+            pf_variable = clm[
+                10, :, :
+            ]  # SWE is the 11th layer in CLM files (Python index 10)
+
+        elif variable == "latent_heat":
+            clm_files = sorted(
+                glob(f"{parflow_output_dir}/{parflow_runname}.out.clm_output.*.C.pfb")
+            )
+            clm = pf.read_pfb(clm_files[t - 1])
+            pf_variable = clm[
+                0, :, :
+            ]  # latent heat is the 1st layer in CLM files (Python index 0)
 
         else:
             raise ValueError(
-                "variable must be one of: 'streamflow', 'water_table_depth', or 'swe'"
+                "variable must be one of: 'streamflow', 'water_table_depth', 'swe', or 'latent_heat'"
             )
 
         # Select out only locations with observations
