@@ -190,7 +190,7 @@ def get_observations(
         if variable in ["streamflow", "water_table_depth"]:
             kwargs["dataset"] = "usgs_nwis"
         elif variable == "swe":
-            kwargs["dataset"] = "usda_nrcs"
+            kwargs["dataset"] = "snotel"
         elif variable == "latent_heat":
             kwargs["dataset"] = "ameriflux"
     if kwargs.get("aggregation") is None:

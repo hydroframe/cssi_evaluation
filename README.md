@@ -2,7 +2,7 @@
 
 Code used to compare ParFlow simulated output to real-world observations.
 
-Please see `example_workflow.ipynb` for an example of how the functions in this module are intended to be used with each other. Note that the input in this example is a mask generated from a HUC (list) using `subsettools`. This is one method of generating a mask, but the workflow will work with any mask and accompanying bounds within either the conus1 or conus2 domain. This workflow is restricted to comparisons within the conus1 or conus2 domains.
+Please see `example_workflow.ipynb` for an example of how the functions in this module are intended to be used with each other. Note that the input in this example is a mask generated from a HUC (list) using `subsettools`. This is one method of generating a mask, but the workflow will work with any mask and accompanying bounds within either the conus1 or conus2 domain. This workflow is restricted to comparisons within the conus1 or conus2 domains. If you wish to use the entire conus1 or conus2 domain, use `utils.define_conus_domain("conus2")` to obtain the ij_bounds and mask for the full conus2 grid (or likewise for conus1).
 
 This module contains three distinct steps, which will be linked up in the final workflow:
   1. Gather site-level observations for a requested domain
