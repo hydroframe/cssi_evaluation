@@ -328,6 +328,7 @@ def get_parflow_output(
     # Create an array of datetime objects
     start_date_dt = datetime.datetime.strptime(start_date, "%Y-%m-%d %H:%M:%S")
     end_date_dt = datetime.datetime.strptime(end_date, "%Y-%m-%d %H:%M:%S")
+    year = start_date_dt.year
 
     if temporal_resolution == "hourly":
         timesteps = np.arange(
@@ -345,27 +346,28 @@ def get_parflow_output(
         raise ValueError("temporal_resolution must be either 'hourly' or 'daily'.")
     nt = len(timesteps)
 
-    run = Run.from_definition(f"{parflow_output_dir}/{parflow_runname}.pfidb")
-    data = run.data_accessor
+    if temporal_resolution == "hourly":
+        run = Run.from_definition(f"{parflow_output_dir}/{parflow_runname}.pfidb")
+        data = run.data_accessor
 
-    # Subtract 1 since the 0 index is not being used (0=initial conditions)
-    parflow_nt = (len(data.times)) - 1
+        # Subtract 1 since the 0 index is not being used (0=initial conditions)
+        parflow_nt = (len(data.times)) - 1
 
-    try:
-        assert parflow_nt == nt
-    except Exception as exc:
-        raise ValueError(
-            f"The number of observation timesteps({nt}) and ParFlow timesteps({parflow_nt}) do not match."
-        ) from exc
+        try:
+            assert parflow_nt == nt
+        except Exception as exc:
+            raise ValueError(
+                f"The number of observation timesteps({nt}) and ParFlow timesteps({parflow_nt}) do not match."
+            ) from exc
 
-    dx = data.dx
-    dy = data.dy
-    dz = data.dz
+        dx = data.dx
+        dy = data.dy
+        dz = data.dz
 
-    mask = data.mask
-    mannings = (read_pfb(f"{parflow_output_dir}/mannings.pfb")).squeeze()
-    slopex = (data.slope_x).squeeze()
-    slopey = (data.slope_y).squeeze()
+        mask = data.mask
+        mannings = (read_pfb(f"{parflow_output_dir}/mannings.pfb")).squeeze()
+        slopex = (data.slope_x).squeeze()
+        slopey = (data.slope_y).squeeze()
 
     # Initialize array for final output: one column per mapped site, one row per timestep
     num_sites = len(obs_metadata_df)
@@ -376,48 +378,75 @@ def get_parflow_output(
     # Note: pf_variable below will be a NumPy array of shape (ny, nx) for a single timestep
     for t in range(1, (nt + 1)):
         if variable == "streamflow":
-            press_files = sorted(
-                glob(f"{parflow_output_dir}/{parflow_runname}.out.press*.pfb")
-            )
-            pressure = pf.read_pfb(press_files[t])
-
-            # convert streamflow from m^3/h to m^3/s
-            pf_variable = (
-                hydro.calculate_overland_flow_grid(
-                    pressure, slopex, slopey, mannings, dx, dy, mask=mask
+            if temporal_resolution == "hourly":
+                press_files = sorted(
+                    glob(f"{parflow_output_dir}/{parflow_runname}.out.press*.pfb")
                 )
-                / 3600
-            )
+                pressure = pf.read_pfb(press_files[t])
+
+                # convert streamflow from m^3/h to m^3/s
+                pf_variable = (
+                    hydro.calculate_overland_flow_grid(
+                        pressure, slopex, slopey, mannings, dx, dy, mask=mask
+                    )
+                    / 3600
+                )
+            else:
+                pf_variable = pf.read_pfb(
+                    f"{parflow_output_dir}/flow.{year}.daily.{str(t).zfill(3)}.pfb"
+                ).squeeze()
+                pf_variable = pf_variable / 3600  # convert from m^3/h to cms
 
         elif variable == "water_table_depth":
-            press_files = sorted(
-                glob(f"{parflow_output_dir}/{parflow_runname}.out.press*.pfb")
-            )
-            sat_files = sorted(
-                glob(f"{parflow_output_dir}/{parflow_runname}.out.satur*.pfb")
-            )
-            pressure = pf.read_pfb(press_files[t])
-            saturation = pf.read_pfb(sat_files[t])
+            if temporal_resolution == "hourly":
+                press_files = sorted(
+                    glob(f"{parflow_output_dir}/{parflow_runname}.out.press*.pfb")
+                )
+                sat_files = sorted(
+                    glob(f"{parflow_output_dir}/{parflow_runname}.out.satur*.pfb")
+                )
+                pressure = pf.read_pfb(press_files[t])
+                saturation = pf.read_pfb(sat_files[t])
 
-            pf_variable = hydro.calculate_water_table_depth(pressure, saturation, dz)
+                pf_variable = hydro.calculate_water_table_depth(
+                    pressure, saturation, dz
+                )
+            else:
+                pf_variable = pf.read_pfb(
+                    f"{parflow_output_dir}/WTD.{year}.daily.{str(t).zfill(3)}.pfb"
+                ).squeeze()
 
         elif variable == "swe":
-            clm_files = sorted(
-                glob(f"{parflow_output_dir}/{parflow_runname}.out.clm_output.*.C.pfb")
-            )
-            clm = pf.read_pfb(clm_files[t - 1])
-            pf_variable = clm[
-                10, :, :
-            ]  # SWE is the 11th layer in CLM files (Python index 10)
+            if temporal_resolution == "hourly":
+                clm_files = sorted(
+                    glob(
+                        f"{parflow_output_dir}/{parflow_runname}.out.clm_output.*.C.pfb"
+                    )
+                )
+                clm = pf.read_pfb(clm_files[t - 1])
+                pf_variable = clm[
+                    10, :, :
+                ]  # SWE is the 11th layer in CLM files (Python index 10)
+            else:
+                pf_variable = pf.read_pfb(
+                    f"{parflow_output_dir}/swe_out.{year}.daily.{str(t).zfill(3)}.pfb"
+                ).squeeze()
 
         elif variable == "latent_heat":
-            clm_files = sorted(
-                glob(f"{parflow_output_dir}/{parflow_runname}.out.clm_output.*.C.pfb")
-            )
-            clm = pf.read_pfb(clm_files[t - 1])
-            pf_variable = clm[
-                0, :, :
-            ]  # latent heat is the 1st layer in CLM files (Python index 0)
+            if temporal_resolution == "hourly":
+                clm_files = sorted(
+                    glob(
+                        f"{parflow_output_dir}/{parflow_runname}.out.clm_output.*.C.pfb"
+                    )
+                )
+                clm = pf.read_pfb(clm_files[t - 1])
+                pf_variable = clm[
+                    0, :, :
+                ]  # latent heat is the 1st layer in CLM files (Python index 0)
+            else:
+                pf_variable = pf.read_pfb(
+                    f"{parflow_output_dir}/eflx_lh_tot.{year}.daily.{str(t).zfill(3)}.pfb"
+                ).squeeze()
 
         else:
             raise ValueError(

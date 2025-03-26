@@ -10,10 +10,10 @@ This module contains three distinct steps, which will be linked up in the final 
   3. Calculate metrics and produce plots to compare outputs from (1) and (2)
 
 Supported variables:
-  - 'streamflow' (USGS)
-  - 'water_table_depth' (USGS)
-  - 'swe' (SNOTEL)
-  - 'latent_heat' (AmeriFlux) 
+  - 'streamflow' (USGS) ('hourly' or 'daily')
+  - 'water_table_depth' (USGS) ('hourly' or 'daily')
+  - 'swe' (SNOTEL) ('daily')
+  - 'latent_heat' (AmeriFlux) ('hourly') 
 
 Supported metrics:
   - 'r2': Correlation of determination

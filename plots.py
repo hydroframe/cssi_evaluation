@@ -158,6 +158,8 @@ def plot_time_series(
             ax.set_ylabel("Water Table Depth [m]")
         elif variable == "swe":
             ax.set_ylabel("Snow Water Equivalent [mm]")
+        elif variable == "latent_heat":
+            ax.set_ylabel("Latent Heat Flux [W/m^2]")
 
         plt.title(f"{site_name}")
         plt.savefig(f"{output_dir}/{variable}_{site_id}.png", bbox_inches="tight")
