@@ -107,6 +107,34 @@ def get_domain_indices(ij_bounds, conus_indices):
     return (mapped_i, mapped_j)
 
 
+def remove_sparse_columns(df, min_obs_pct=None, min_obs_count=None):
+    """
+    Removes columns from a DataFrame that have fewer non-missing values than the specified threshold.
+
+    Parameters:
+    - df: pd.DataFrame
+    - min_obs_pct: float, optional — e.g. 0.95 means keep columns with at least 95% non-missing values
+    - min_obs_count: int, optional — e.g. 100 means keep columns with at least 100 non-missing values
+
+    Returns:
+    - pd.DataFrame: filtered DataFrame with columns removed
+
+    Raises:
+    - ValueError: if neither or both thresholds are specified
+    """
+    if (min_obs_pct is None) == (min_obs_count is None):
+        raise ValueError("You must specify exactly one of min_obs_pct or min_obs_count")
+
+    if min_obs_pct is not None:
+        threshold = df.shape[0] * min_obs_pct
+    else:
+        threshold = min_obs_count
+
+    # Keep only columns where non-missing count >= threshold
+    valid_cols = df.columns[df.notna().sum() >= threshold]
+    return df[valid_cols]
+
+
 def initialize_metrics_df(obs_metadata_df, metrics_list):
     """
     Initialize DataFrame table to store metrics output.

@@ -117,6 +117,8 @@ def get_observations(
     write_csvs=False,
     csv_paths=None,
     remove_sites_no_data=True,
+    missing_pct_threshold=None,
+    missing_count_threshold=None,
     **kwargs,
 ):
     """
@@ -155,9 +157,18 @@ def get_observations(
     remove_sites_no_data : bool; default=True
         Indicator for whether to filter data and metadata DataFrames to only include sites with non-NaN
         observation measurements over the requested time range. The default is to exclude these sites.
-    dataset : str
-        Source of observations data (eg.: "usgs_nwis", "snotel", ...)
-    aggregation
+    missing_pct_threshold : float; default=None
+        Float representing the minimum percentage of non-missing values required for a site to be
+        included in the returned DataFrames. E.g. 0.95 means a site must have at least 95% of the
+        requested timesteps with non-missing values. If None, this filter is not applied.
+    missing_count_threshold : int; default=None
+        Integer representing the minimum count of non-missing values required for a site to be
+        included in the returned DataFrames. E.g. 100 means a site must have at least 100
+        non-missing values over the requested time range. If None, this filter is not applied.
+    kwargs
+        Additional keyword arguments to pass in to `hf_hydrodata.get_point_metadata` and
+        `hf_hydrodata.get_point_data`. These include `dataset` and `aggregation`.
+
 
     Returns
     -------
@@ -258,6 +269,18 @@ def get_observations(
         obs_data_df = obs_data_df.dropna(axis=1, how="all")
         nan_sites = [s for s in site_list if s not in list(obs_data_df.columns)]
         metadata_df = metadata_df[~metadata_df.site_id.isin(nan_sites)]
+
+    # Only proceed if observation time series has enough non-NaN values
+    if (missing_pct_threshold) or (missing_count_threshold):
+        obs_data_df = utils.remove_sparse_columns(
+            obs_data_df,
+            min_obs_pct=missing_pct_threshold,
+            min_obs_count=missing_count_threshold,
+        )
+        missing_data_sites = [
+            s for s in site_list if s not in list(obs_data_df.columns)
+        ]
+        metadata_df = metadata_df[~metadata_df.site_id.isin(missing_data_sites)]
 
     if output_type == "long":
         # Reshape observations dataframe and attach i/j locations
@@ -525,6 +548,11 @@ def calculate_metrics(
 
         obs_data = obs_data_df.loc[:, [site_id]].to_numpy()
         pf_data = parflow_data_df.loc[:, [site_id]].to_numpy()
+
+        # Trim arrays to remove matching indices where NaN observations are
+        nan_mask = ~np.isnan(obs_data)
+        obs_data = obs_data[nan_mask]
+        pf_data = pf_data[nan_mask]
 
         try:
             assert len(obs_data) == len(pf_data)
