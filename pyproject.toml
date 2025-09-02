@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "cssi_evaluation"
-version = "0.0.1"
+version = "0.1.0"
 description = "Model evaluation functions for the CSSI project"
 readme = {file = "README.md", content-type = "text/markdown"}
 license = {file = "LICENSE"}
