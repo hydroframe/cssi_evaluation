@@ -1,4 +1,5 @@
 """Functions to support plotting within the model evaluation module."""
+
 import os
 from matplotlib.lines import Line2D
 import pandas as pd
@@ -163,6 +164,7 @@ def plot_time_series(
 
         plt.title(f"{site_name}")
         plt.savefig(f"{output_dir}/{variable}_{site_id}.png", bbox_inches="tight")
+        plt.close()
 
 
 def plot_compare_scatter(
@@ -279,10 +281,11 @@ def plot_metric_map(mask, metrics_df, variable, metrics_list, output_dir="."):
 
         if metric == "condon":
             ax.imshow(mask, origin="lower", cmap="Greys_r", alpha=0.1)
+            df_plot = metrics_df[metrics_df["condon"] != "Undefined"]
             points = ax.scatter(
-                metrics_df["domain_i"],
-                metrics_df["domain_j"],
-                c=metrics_df[metric].map(metric_cmap),
+                df_plot["domain_i"],
+                df_plot["domain_j"],
+                c=df_plot[metric].map(metric_cmap),
                 s=20,
             )
             # add categorical legend
@@ -439,8 +442,8 @@ def plot_condon_diagram(metrics_df, variable, output_dir="."):
             round(
                 df_plot[df_plot["condon"] == "Low bias, good shape"].shape[0]
                 / total_obs
+                * 100
             )
-            * 100
         )
         + "%",
         weight="bold",
@@ -453,8 +456,8 @@ def plot_condon_diagram(metrics_df, variable, output_dir="."):
             round(
                 df_plot[df_plot["condon"] == "High bias, good shape"].shape[0]
                 / total_obs
+                * 100
             )
-            * 100
         )
         + "%",
         weight="bold",
@@ -467,8 +470,8 @@ def plot_condon_diagram(metrics_df, variable, output_dir="."):
             round(
                 df_plot[df_plot["condon"] == "Low bias, poor shape"].shape[0]
                 / total_obs
+                * 100
             )
-            * 100
         )
         + "%",
         weight="bold",
@@ -481,8 +484,8 @@ def plot_condon_diagram(metrics_df, variable, output_dir="."):
             round(
                 df_plot[df_plot["condon"] == "High bias, poor shape"].shape[0]
                 / total_obs
+                * 100
             )
-            * 100
         )
         + "%",
         weight="bold",
