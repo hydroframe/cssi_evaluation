@@ -5,6 +5,7 @@ Note that these functions are not intended to be used stand-alone; they act as s
 within the model_evaluation.evaluate method.
 """
 
+import datetime
 import numpy as np
 from hf_hydrodata import get_gridded_data
 from subsettools._error_checking import _validate_grid
@@ -133,6 +134,64 @@ def remove_sparse_columns(df, min_obs_pct=None, min_obs_count=None):
     # Keep only columns where non-missing count >= threshold
     valid_cols = df.columns[df.notna().sum() >= threshold]
     return df[valid_cols]
+
+
+def convert_dates_to_timesteps(
+    start_date, end_date, temporal_resolution, initial_timestep=None
+):
+    """
+    Convert start and end dates to timesteps relative to a water year.
+
+    Parameters
+    ----------
+    start_date : datetime
+        The starting date (daily) or date+hour (hourly) for the ParFlow simulations.
+    end_date : datetime
+        The ending date (daily) or date+hour (hourly) for the ParFlow simulations.
+    temporal_resolution : str
+        "hourly" or "daily"
+    initial_timestep : datetime; default=None
+        The starting date (daily) or date+hour (hourly) for the ParFlow simulations.
+        If None, defaults to the first of the water year containing start_date.
+
+    Returns
+    -------
+    tuple
+        (ts_start, ts_end) representing the starting and ending timesteps relative to the
+        water year and temporal resolution. The ending timestep is inclusive.
+    """
+    water_year = get_water_year(start_date)
+
+    # Default to counting timestep 1 as the first of the water year
+    if initial_timestep is None:
+        initial_timestep = datetime.datetime(water_year - 1, 10, 1)
+
+    start_delta = start_date - initial_timestep
+    end_delta = end_date - initial_timestep
+
+    # Add 1 after to start daily indexing at 1 instead of 0
+    if temporal_resolution == "daily":
+        ts_start = start_delta.days + 1
+        ts_end = end_delta.days + 1
+
+    elif temporal_resolution == "hourly":
+        ts_start = start_delta.days * 24 + 1
+        ts_end = (end_delta.days + 1) * 24
+
+    else:
+        raise ValueError(
+            f"Value of {temporal_resolution} for temporal_resolution is not recognized."
+        )
+
+    return (ts_start, ts_end)
+
+
+def get_water_year(date):
+    """Return the water year for a given date."""
+    if date.month in range(1, 10):
+        return date.year
+    else:
+        return date.year + 1
 
 
 def initialize_metrics_df(obs_metadata_df, metrics_list):

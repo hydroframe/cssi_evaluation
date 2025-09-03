@@ -4,7 +4,6 @@ Main method for model evaluation.
 
 import datetime
 import warnings
-from glob import glob
 import pandas as pd
 import hf_hydrodata as hf
 import numpy as np
@@ -55,11 +54,9 @@ def explore_available_observations(mask, ij_bounds, grid, **kwargs):
         conus domain.
     grid : str
         "conus1" or "conus2"
-    temporal_resolution
-    dataset
-    variable
-    date_start
-    date_end
+    kwargs
+        Additional keyword arguments to pass in to `hf_hydrodata.get_site_variables`. These include
+        `temporal_resolution`, `dataset`, `variable`, `date_start`, and `date_end`.
 
     Returns
     -------
@@ -138,10 +135,10 @@ def get_observations(
         conus domain.
     grid : str
         "conus1" or "conus2"
-    date_start : str
-        "YYYY-MM-DD" for starting date of observations data returned.
-    date_end : str
-        "YYYY-MM-DD" for ending date of observations data returned.
+    date_start : datetime
+        Starting date of observations data returned.
+    date_end : datetime
+        Ending date of observations data returned.
     variable : str
         Variable requested
     temporal_resolution : str
@@ -302,10 +299,11 @@ def get_parflow_output(
     obs_metadata_df,
     parflow_output_dir,
     parflow_runname,
-    start_date,
-    end_date,
+    date_start,
+    date_end,
     variable,
     temporal_resolution,
+    initial_timestep=None,
     write_csv=False,
     csv_path=None,
 ):
@@ -322,18 +320,17 @@ def get_parflow_output(
     parflow_runname : str
         Name used to define the ParFlow run. Note that in standard ParFlow file naming
         conventions, this is used at the beginning of certain output file names.
-    start_date : str
-        "YYYY-MM-DD" or "YYYY-MM-DD HH:00" representing the starting date (daily) or
-        date+hour (hourly) for the ParFlow simulations.
-    end_date : str
-        "YYYY-MM-DD" or "YYYY-MM-DD HH:00" representing the ending date (daily) or
-        date+hour (hourly) for the ParFlow simulations. Note that the number of timesteps
-        (days or hours) provided here must match the number of timestep files in the
-        ParFlow output directory provided.
+    date_start : datetime
+        The starting date (daily) or date+hour (hourly) for the ParFlow simulations.
+    date_end : datetime
+        The ending date (daily) or date+hour (hourly) for the ParFlow simulations.
     variable : str
         Variable requested
     temporal_resolution : str
         "hourly" or "daily"
+    initial_timestep : datetime; default=None
+        The starting date (daily) or date+hour (hourly) for the ParFlow simulations.
+        If None, defaults to the first of the water year containing start_date.
     write_csv : bool; default=False
         Indicator for whether to additionally write out calculated metrics to disk as .csv.
     csv_path : str; default=None
@@ -348,40 +345,31 @@ def get_parflow_output(
         that site.
     """
 
-    # Create an array of datetime objects
-    start_date_dt = datetime.datetime.strptime(start_date, "%Y-%m-%d %H:%M:%S")
-    end_date_dt = datetime.datetime.strptime(end_date, "%Y-%m-%d %H:%M:%S")
-    year = start_date_dt.year
+    water_year = utils.get_water_year(date_start)
 
     if temporal_resolution == "hourly":
         timesteps = np.arange(
-            start_date_dt,
-            end_date_dt + datetime.timedelta(hours=1),
+            date_start,
+            date_end + datetime.timedelta(hours=24),
             datetime.timedelta(hours=1),
         ).astype("datetime64[h]")
     elif temporal_resolution == "daily":
         timesteps = np.arange(
-            start_date_dt,
-            end_date_dt + datetime.timedelta(days=1),
+            date_start,
+            date_end + datetime.timedelta(days=1),
             datetime.timedelta(days=1),
         ).astype("datetime64[D]")
     else:
         raise ValueError("temporal_resolution must be either 'hourly' or 'daily'.")
     nt = len(timesteps)
 
+    ts_start, ts_end = utils.convert_dates_to_timesteps(
+        date_start, date_end, temporal_resolution, initial_timestep
+    )
+
     if temporal_resolution == "hourly":
         run = Run.from_definition(f"{parflow_output_dir}/{parflow_runname}.pfidb")
         data = run.data_accessor
-
-        # Subtract 1 since the 0 index is not being used (0=initial conditions)
-        parflow_nt = (len(data.times)) - 1
-
-        try:
-            assert parflow_nt == nt
-        except Exception as exc:
-            raise ValueError(
-                f"The number of observation timesteps({nt}) and ParFlow timesteps({parflow_nt}) do not match."
-            ) from exc
 
         dx = data.dx
         dy = data.dy
@@ -399,13 +387,13 @@ def get_parflow_output(
     # Iterate through all hours, starting at 1 and ending at the last hour in the date range
     # (t-1) is used below to set the dataframe from index 0 (hour starts at index 1)
     # Note: pf_variable below will be a NumPy array of shape (ny, nx) for a single timestep
-    for t in range(1, (nt + 1)):
+    ts_idx = 0
+    for t in range(ts_start, (ts_end + 1)):
         if variable == "streamflow":
             if temporal_resolution == "hourly":
-                press_files = sorted(
-                    glob(f"{parflow_output_dir}/{parflow_runname}.out.press*.pfb")
+                pressure = pf.read_pfb(
+                    f"{parflow_output_dir}/{parflow_runname}.out.press.{str(t).zfill(5)}.pfb"
                 )
-                pressure = pf.read_pfb(press_files[t])
 
                 # convert streamflow from m^3/h to m^3/s
                 pf_variable = (
@@ -416,59 +404,51 @@ def get_parflow_output(
                 )
             else:
                 pf_variable = pf.read_pfb(
-                    f"{parflow_output_dir}/flow.{year}.daily.{str(t).zfill(3)}.pfb"
+                    f"{parflow_output_dir}/flow.{water_year}.daily.{str(t).zfill(3)}.pfb"
                 ).squeeze()
                 pf_variable = pf_variable / 3600  # convert from m^3/h to cms
 
         elif variable == "water_table_depth":
             if temporal_resolution == "hourly":
-                press_files = sorted(
-                    glob(f"{parflow_output_dir}/{parflow_runname}.out.press*.pfb")
+                pressure = pf.read_pfb(
+                    f"{parflow_output_dir}/{parflow_runname}.out.press.{str(t).zfill(5)}.pfb"
                 )
-                sat_files = sorted(
-                    glob(f"{parflow_output_dir}/{parflow_runname}.out.satur*.pfb")
+                saturation = pf.read_pfb(
+                    f"{parflow_output_dir}/{parflow_runname}.out.satur.{str(t).zfill(5)}.pfb"
                 )
-                pressure = pf.read_pfb(press_files[t])
-                saturation = pf.read_pfb(sat_files[t])
 
                 pf_variable = hydro.calculate_water_table_depth(
                     pressure, saturation, dz
                 )
             else:
                 pf_variable = pf.read_pfb(
-                    f"{parflow_output_dir}/WTD.{year}.daily.{str(t).zfill(3)}.pfb"
+                    f"{parflow_output_dir}/WTD.{water_year}.daily.{str(t).zfill(3)}.pfb"
                 ).squeeze()
 
         elif variable == "swe":
             if temporal_resolution == "hourly":
-                clm_files = sorted(
-                    glob(
-                        f"{parflow_output_dir}/{parflow_runname}.out.clm_output.*.C.pfb"
-                    )
+                clm = pf.read_pfb(
+                    f"{parflow_output_dir}/{parflow_runname}.out.clm_output.{str(t).zfill(5)}.C.pfb"
                 )
-                clm = pf.read_pfb(clm_files[t - 1])
                 pf_variable = clm[
                     10, :, :
                 ]  # SWE is the 11th layer in CLM files (Python index 10)
             else:
                 pf_variable = pf.read_pfb(
-                    f"{parflow_output_dir}/swe_out.{year}.daily.{str(t).zfill(3)}.pfb"
+                    f"{parflow_output_dir}/swe_out.{water_year}.daily.{str(t).zfill(3)}.pfb"
                 ).squeeze()
 
         elif variable == "latent_heat":
             if temporal_resolution == "hourly":
-                clm_files = sorted(
-                    glob(
-                        f"{parflow_output_dir}/{parflow_runname}.out.clm_output.*.C.pfb"
-                    )
+                clm = pf.read_pfb(
+                    f"{parflow_output_dir}/{parflow_runname}.out.clm_output.{str(t).zfill(5)}.C.pfb"
                 )
-                clm = pf.read_pfb(clm_files[t - 1])
                 pf_variable = clm[
                     0, :, :
                 ]  # latent heat is the 1st layer in CLM files (Python index 0)
             else:
                 pf_variable = pf.read_pfb(
-                    f"{parflow_output_dir}/eflx_lh_tot.{year}.daily.{str(t).zfill(3)}.pfb"
+                    f"{parflow_output_dir}/eflx_lh_tot.{water_year}.daily.{str(t).zfill(3)}.pfb"
                 ).squeeze()
 
         else:
@@ -478,10 +458,11 @@ def get_parflow_output(
 
         # Select out only locations with observations
         for obs_idx in range(num_sites):
-            pf_matched_obs[t - 1, obs_idx] = pf_variable[
+            pf_matched_obs[ts_idx, obs_idx] = pf_variable[
                 obs_metadata_df.iloc[obs_idx].loc["domain_j"],
                 obs_metadata_df.iloc[obs_idx].loc["domain_i"],
             ]
+        ts_idx += 1
 
     # Format final output array into DataFrame
     pf_matched_obs_df = pd.DataFrame(pf_matched_obs)
