@@ -183,15 +183,18 @@ def get_observations(
             f"{variable} is not supported. Supported variables include: 'streamflow', 'water_table_depth', 'swe', 'latent_heat'."
         ) from exc
 
-    utils.check_mask_shape(mask, ij_bounds)
+    # Setting an ij_bounds of None means that the user wants to use the full CONUS grid, so we don't need
+    # to check the mask shape or adjust the ij_bounds.
+    if ij_bounds is not None:
+        utils.check_mask_shape(mask, ij_bounds)
 
-    # Update bounds so they use inclusive upper bounds for hf_hydrodata. Otherwise, one index too many will be requested.
-    ij_bounds = [
-        ij_bounds[0],
-        ij_bounds[1],
-        ij_bounds[2] - 1,
-        ij_bounds[3] - 1,
-    ]
+        # Update bounds so they use inclusive upper bounds for hf_hydrodata. Otherwise, one index too many will be requested.
+        ij_bounds = [
+            ij_bounds[0],
+            ij_bounds[1],
+            ij_bounds[2] - 1,
+            ij_bounds[3] - 1,
+        ]
 
     # Define variables if provided (move to separate function)
     if kwargs.get("dataset") is None:
@@ -223,23 +226,27 @@ def get_observations(
 
     # Shift i/j coordinates so that they index starting from the regional
     # bounding box origin instead of the overall CONUS grid origin
-    metadata_df["domain_i"] = metadata_df.apply(
-        lambda x: utils.get_domain_indices(ij_bounds, (x[f"{grid}_i"], x[f"{grid}_j"]))[
-            0
-        ],
-        axis=1,
-    )
-    metadata_df["domain_j"] = metadata_df.apply(
-        lambda x: utils.get_domain_indices(ij_bounds, (x[f"{grid}_i"], x[f"{grid}_j"]))[
-            1
-        ],
-        axis=1,
-    )
+    if ij_bounds is not None:
+        metadata_df["domain_i"] = metadata_df.apply(
+            lambda x: utils.get_domain_indices(
+                ij_bounds, (x[f"{grid}_i"], x[f"{grid}_j"])
+            )[0],
+            axis=1,
+        )
+        metadata_df["domain_j"] = metadata_df.apply(
+            lambda x: utils.get_domain_indices(
+                ij_bounds, (x[f"{grid}_i"], x[f"{grid}_j"])
+            )[1],
+            axis=1,
+        )
 
-    # Filter sites to only those within HUC mask
-    metadata_df["mask"] = mask[metadata_df["domain_j"], metadata_df["domain_i"]]
-    metadata_df = metadata_df[metadata_df["mask"] == 1]
-    metadata_df.drop(columns=("mask"), inplace=True)
+        # Filter sites to only those within HUC mask
+        metadata_df["mask"] = mask[metadata_df["domain_j"], metadata_df["domain_i"]]
+        metadata_df = metadata_df[metadata_df["mask"] == 1]
+        metadata_df.drop(columns=("mask"), inplace=True)
+    else:
+        metadata_df["domain_i"] = metadata_df[f"{grid}_i"]
+        metadata_df["domain_j"] = metadata_df[f"{grid}_j"]
 
     # Add context variables to metadata DF
     metadata_df["grid"] = grid
