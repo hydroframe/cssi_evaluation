@@ -8,50 +8,18 @@ within the model_evaluation.evaluate method.
 import datetime
 import numpy as np
 from hf_hydrodata import get_gridded_data
-from subsettools._error_checking import _validate_grid
-from subsettools.domain import _indices_to_ij
 
 HYDRODATA = "/hydrodata"
 
 
-def define_conus_domain(grid):
+def get_conus_mask(grid):
     """
-    Define a domain consisting of the entire conus grid.
-
-    Parameters
-    ----------
-    grid : str
-        "conus1" or "conus2" representing the entire grid domain.
-
-    Returns
-    -------
-    A tuple (bounds, mask).
-
-        Bounds is a tuple of the form (imin, jmin, imax, jmax) representing the
-        bounds in the conus grid of the area defined by the HUC IDs in hucs.
-        imin, jmin, imax, jmax are the west, south, east and north sides of the
-        box respectively and all i,j indices are calculated relative to the
-        lower southwest corner of the domain.
-
-        Mask is a 2D numpy.ndarray that indicates which cells inside the bounding
-        box are part of the selected HUC(s).
+    Get the CONUS mask for a given grid.
     """
-    _validate_grid(grid)
+    options = {"dataset": f"{grid}_domain", "variable": "mask"}
+    conus_mask = get_gridded_data(options).squeeze()
 
-    options = {
-        "dataset": "huc_mapping",
-        "grid": grid,
-        "file_type": "tiff",
-        "level": "2",
-    }
-    conus_domain = get_gridded_data(options)
-    conus_mask = np.isin(conus_domain, [0], invert=True).squeeze()
-    indices_j, indices_i = np.where(conus_domain > 0)
-
-    bounds = _indices_to_ij(indices_j, indices_i)
-    imin, jmin, imax, jmax = bounds
-
-    return bounds, conus_mask[jmin:jmax, imin:imax].astype(int)
+    return conus_mask.astype(int)
 
 
 def check_mask_shape(mask, ij_bounds):
