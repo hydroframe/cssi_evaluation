@@ -245,8 +245,8 @@ def get_observations(
         metadata_df = metadata_df[metadata_df["mask"] == 1]
         metadata_df.drop(columns=("mask"), inplace=True)
     else:
-        metadata_df["domain_i"] = metadata_df[f"{grid}_i"]
-        metadata_df["domain_j"] = metadata_df[f"{grid}_j"]
+        metadata_df["domain_i"] = metadata_df[f"{grid}_i"].astype(int)
+        metadata_df["domain_j"] = metadata_df[f"{grid}_j"].astype(int)
 
     # Add context variables to metadata DF
     metadata_df["grid"] = grid
