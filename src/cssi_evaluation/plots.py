@@ -7,8 +7,6 @@ import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 import matplotlib.font_manager as fm
 
-import utils
-
 SITE_COLORS = {
     "stream gauge": "blue",
     "groundwater well": "green",
