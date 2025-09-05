@@ -563,7 +563,7 @@ def calculate_metrics(
                     )
                 except Exception as exc:
                     raise ValueError(
-                        f"""Please include 'abs_rel_bias' and 'spearman_rho' in the metrics list
+                        """Please include 'abs_rel_bias' and 'spearman_rho' in the metrics list
                         in order to calculate the Condon category."""
                     ) from exc
                 metrics_df.loc[metrics_df["site_id"] == site_id, f"{m}"] = METRICS_DICT[

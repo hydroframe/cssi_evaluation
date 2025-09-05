@@ -26,3 +26,6 @@ dependencies = [
 [dependency-groups]
 test = ["pytest"]
 dev = ["black", "pylint"]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/cssi_evaluation"]
