@@ -3,7 +3,7 @@ Snow evaluation utility functions
 """
 
 import pandas as pd
-from typing import Union
+from typing import Any, Union
 
 
 def compute_water_year(
@@ -65,7 +65,7 @@ def same_day_swe_comparison(
 
         Example:
 
-                        Observed	Modeled	  Water_Year	Station
+                    Observed	Modeled	  Water_Year	Station
         2019-04-18	0.98044	    1.0293	  2019	        CCSS_DAN_swe_m
         2019-04-20	2.12090	    1.3598	  2019	        CCSS_HRS_swe_m
         2019-03-28	0.80264	    0.6708	  2019	        CCSS_KIB_swe_m
@@ -214,4 +214,119 @@ def different_day_swe_comparison(
 
     # concatenate all dataframes together and return
     return pd.concat(dfs).reset_index().drop("index", axis=1)
+
+
+def compute_melt_period(
+    swe_series: pd.Series, min_zero_days: int = 10
+) -> dict[str, Any]:
+    """
+    computes the snow melt period for the input Series.
+
+    Parameters
+    ==========
+    swe_series: pandas.Series
+        A pandas series containing SWE values indexed by datetime.
+    min_zero_days: int -> 10
+        The minimum number of consecutive days with zero SWE to consider
+        when determining the melt end date.
+
+    Returns
+    =======
+    dict[str, Any]
+        A dictionary containing melt period information with the following keys:
+        peak_date, peak_swe_m, melt_end_date, melt_period_days, melt_rate_m/d
+
+    """
+
+    peak_date = swe_series.idxmax()
+    peak_swe = swe_series.max()
+
+    after_peak = swe_series.loc[peak_date:]
+
+    zero_streak = 0
+    melt_end_date = None
+
+    for date, value in after_peak.items():
+        if value == 0:
+            zero_streak += 1
+        else:
+            zero_streak = 0
+
+        if zero_streak >= min_zero_days:
+            melt_end_date = date
+            break
+
+    if melt_end_date is None:
+        raise ValueError(
+            f"Could not find a period of at least {min_zero_days} consecutive zero SWE days after the peak."
+        )
+
+    melt_period_days = (melt_end_date - peak_date).days
+    melt_rate = peak_swe / melt_period_days
+
+    return {
+        "peak_date": peak_date,
+        "peak_swe_m": peak_swe,
+        "melt_end_date": melt_end_date,
+        "melt_period_days": melt_period_days,
+        "melt_rate_m/d": melt_rate,
+    }
+
+
+def compute_melt_period_statistics(
+    df: pd.DataFrame, min_zero_days: int = 10
+) -> pd.DataFrame:
+    """
+    Computes melt period statistics for each station and water year in the input DataFrame.
+
+    Parameters
+    ==========
+
+    Returns
+    =======
+    pandas.DataFrame
+        A pandas DataFrame containing melt period statistics with the following columns:
+        Water_Year, Station, Peak_SWE_Date, Peak_SWE_m, Melt_End_Date, Melt_Period_Days,
+        Melt_Rate_m_per_day
+
+    """
+
+    # TODO: move ccss columns as an input parameter
+    result = []
+
+    # Identify CCSS SWE columns
+    ccss_columns = [
+        col for col in df.columns if col.startswith("CCSS_") and col.endswith("_swe_m")
+    ]
+
+    for wy, group in df.groupby("Water_Year"):
+        for station_col in ccss_columns:
+
+            # TODO: refactore dropna handling similar to other functions
+            # Clean series
+            swe_series = pd.to_numeric(group[station_col], errors="coerce").dropna()
+
+            # Skip if insufficient data
+            if swe_series.empty or swe_series.max() == 0:
+                continue
+
+            try:
+                # Compute melt period stats
+                stats = compute_melt_period(swe_series, min_zero_days=min_zero_days)
+                result.append(
+                    {
+                        "Water_Year": wy,
+                        "Station": station_col,
+                        "Peak_SWE_Date": stats["peak_date"],
+                        "Peak_SWE_m": stats["peak_swe_m"],
+                        "Melt_End_Date": stats["melt_end_date"],
+                        "Melt_Period_Days": stats["melt_period_days"],
+                        "Melt_Rate_m_per_day": stats["melt_rate_m/d"],
+                    }
+                )
+            except ValueError:
+                # If melt period cannot be determined, skip
+                continue
+
+    return pd.DataFrame(result)
 
