@@ -111,3 +111,96 @@ def same_day_swe_comparison(df: pd.DataFrame, obs_swe_cols: list[str], mod_swe_c
 
     # concatenate all dataframes together and return
     return pd.concat(dfs)
+
+def different_day_swe_comparison(df: pd.DataFrame, obs_swe_cols: list[str], mod_swe_cols: list[str]) -> pd.DataFrame:
+    """
+    Computes a Different-Day SWE Comparison between modeled and observed values, and
+    returns a DataFrame containing the maximums associates with both and their respective
+    datetimes.
+
+    Parameters
+    ==========
+    df: pandas.DataFrame
+        A pandas dataframe containing columns associated with modeled and observed SWE. The 
+        dataframe must have an datetime[64] index.
+    obs_swe_cols: list[str]
+        Names of the columns associated with observed SWE
+    mod_swe_cols: list[str]
+        Names of the columns associated with modeled SWE
+
+    Returns
+    =======
+     df: pandas.DataFrame
+        A dataframe containing maximum observed and modeled SWE at their respective times of
+        occurence. The format of the DataFrame will be:
+
+           Observed     Observed_Date   Modeled      Modeled_Date    Water_Year    Station              
+        0  <max value>  <obs max date>  <max value>  <mod max date>  <water year>  <obs station name>
+        1  <max value>  <obs max date>  <max value>  <mod max date>  <water year>  <obs station name>
+        ...
+
+        Example:
+        
+            Observed  Observed_Date	 Modeled  Modeled_Date  Water_Year  Station
+        0	0.98044	  2019-04-18	 1.0393	  2019-04-10    2019	    CCSS_DAN_swe_m
+        1	0.41910	  2020-04-21	 0.5206	  2020-04-18    2020	    CCSS_DAN_swe_m
+        2	2.12090	  2019-04-20	 1.5498	  2019-04-03    2019	    CCSS_HRS_swe_m
+        3	0.89662	  2020-04-10	 0.5745	  2020-04-10    2020	    CCSS_HRS_swe_m
+        ...
+
+    
+    """
+
+    # compute water year if it doesn't already exist in the dataframe.
+    # this is needed to properly align the same-day comparison
+    if "Water_Year" not in df.columns:
+        compute_water_year(df, inplace=True)
+
+    # check to make sure that the input columns are the same length. 
+    # Raise an exception if they aren't, because our computation will fail.
+    if len(obs_swe_cols) != len(mod_swe_cols):
+        raise Exception('Modeled and observed inputs must be the same length')
+
+    # make sure our column data is represented as float64, otherwise
+    # the pandas operations below will fail.
+    df = df.apply(pd.to_numeric, errors='coerce').astype('float64')
+    df['Water_Year'] = df['Water_Year'].astype(int) # keep wateryear an integer
+
+    # Loop over each pairwise grouping of obs and mod columns that
+    # have been provided as inputs. Group data for these stations
+    # by water year and determine when the maximum value occurs in
+    # both the observation and modeled series. Save these values
+    # along with their corresponding times
+    dfs = []
+    for obs, mod in zip(obs_swe_cols, mod_swe_cols):
+
+        # get the data for the current obs and mod columns
+        # but drop all NaN data that may exist.
+        dat = df.dropna(subset=[obs, mod, 'Water_Year']).copy()
+        
+        # if all data is NaN for the current obs, mod combination
+        # just skip it.
+        if dat.empty:
+            print(f'Skipping ({obs}, {mod}) because all data is NaN')
+            continue
+        
+        obs_idx = dat.groupby('Water_Year')[obs].idxmax()
+        obs_dat = dat.loc[obs_idx, [obs, 'Water_Year']].copy()
+        obs_dat = obs_dat.rename(columns={obs: 'Observed'})
+        obs_dat['Observed_Date'] = obs_idx.values
+
+        mod_idx = dat.groupby('Water_Year')[mod].idxmax()
+        mod_dat = dat.loc[mod_idx, [mod, 'Water_Year']].copy()
+        mod_dat = mod_dat.rename(columns={mod: 'Modeled'})
+        mod_dat['Modeled_Date'] = mod_idx.values
+
+        dfs.append(
+            # combine the observation and modeled sub-dataframes into one
+            # by joining them on Water_Year. Then add 
+            obs_dat
+                .merge(mod_dat, on='Water_Year', how='outer')
+                .assign(Station=obs) # create a new "Station" column containing the value of the obs 
+        )
+
+    # concatenate all dataframes together and return
+    return pd.concat(dfs).reset_index().drop('index', axis=1)
