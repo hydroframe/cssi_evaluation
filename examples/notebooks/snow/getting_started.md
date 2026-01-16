@@ -11,7 +11,7 @@ Follow these steps:
 ## Creating Virtual Environment on **Verde**
 Follow these steps:  
 
-    # 1. Go to a writable folder (home)
+    # 1. Go to a writable folder (Verde user home)
     cd ~
 
     # 2. Download and extract micromamba (Linux x86_64)
