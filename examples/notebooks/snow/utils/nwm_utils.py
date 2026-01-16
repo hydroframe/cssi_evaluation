@@ -316,6 +316,7 @@ def compute_spatial_agg_from_obs(folder_path, agg):
     return averaged_df
 
     print(f"Averaged CSV saved to: {output_file}")
+    
 
 def plot_sites_within_domain(gdf_sites, domain_gdf, zoom_start=10):
     """
@@ -344,9 +345,15 @@ def plot_sites_within_domain(gdf_sites, domain_gdf, zoom_start=10):
 
     # Add site markers
     for _, row in gdf_sites.iterrows():
+        popup_html = f"""
+        <div style="width:180px;">
+            <b>Site Name:</b> {row.get('Site Name', row['name'])}<br>
+            <b>Site Code:</b> {row.get('Site Code', row.code)}
+        </div>
+        """
         folium.Marker(
             location=[row['latitude'], row['longitude']],
-            popup=f"Site Name: {row.get('Site Name', row['name'])}<br>Site Code: {row.get('Site Code', row.code)}",
+            popup=folium.Popup(popup_html, max_width=200),
             icon=folium.Icon(color="green"),
             tooltip=row.get('Site Name', row['name'])
         ).add_to(m)

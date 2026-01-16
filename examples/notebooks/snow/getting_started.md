@@ -1,4 +1,4 @@
-## Creating Virtual Environment
+## Creating your HydroLearnEnv Virtual Environment
 Follow these steps: 
 
     mamba env create -f nwm_env.yml 
@@ -8,7 +8,7 @@ Follow these steps:
     python -m ipykernel install --user --name=nwm_env
 
 
-## Creating Virtual Environment on **Verde**
+## Creating your HydroLearnEnv Virtual Environment on **Verde**
 Follow these steps:  
 
     # 1. Go to a writable folder (Verde user home)
