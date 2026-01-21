@@ -422,34 +422,44 @@ def compute_stats(df, ts1, ts2):
 
 def comparison_plots(df, ts1, ts2):
     '''
-    ts1: observed
-    ts2: modeled
+    Create a set of comparison plots (timeseries overlay and scatter plot with 1:1 line)
+
+    Parameters:
+    df: dataframe with combined observed and modeled timeseries for each site  
+    ts1 (str): column heading for observed timeseries in df
+    ts2 (str): column heading for modeled timeseries in df
     '''
+
+    df = df.copy()
+    df.index.name = "date" # change the index name to "Date" for better hover tooltip display
+
     # Timeseries plot (Overlay)
     observed_plot = df.hvplot.line(
         y=ts1,
         ylabel='Snow Water Equivalent (m)',
+        xlabel='',
         label='Observed SWE',
         color='blue',
         line_width=2,
-        width=400,
-        height=300,
+        width=500,
+        height=400,
     )
 
     modeled_plot = df.hvplot.line(
     y=ts2,
     ylabel='Snow Water Equivalent (m)',
+    xlabel='',
     label='Modeled SWE',
     color='orchid',
     line_width=2,
-    width=400,
-    height=300,
+    width=500,
+    height=400,
     )
 
     # Overlay (combines both lines into a single visual object)
     timeseries_plot = (observed_plot * modeled_plot).opts(
-        title='Snow Water Equivalent Comparison',
-        legend_position='top',
+        title='Observed vs Modeled SWE\nDaily Time Series',
+        legend_position='top_right',
     )
 
     # Scatter plot
@@ -459,10 +469,10 @@ def comparison_plots(df, ts1, ts2):
         xlabel='Observed SWE (m)',
         ylabel='Modeled SWE (m)',
         color='black',
-        width=400,
-        height=300,
+        width=500,
+        height=400,
         size=15,
-        hover_cols=['index']  # This will add the date (index) to hover tooltip
+        hover_cols=['date']  # This will add the date (index) to hover tooltip
     )
 
     # Add 1:1 line (perfect match line)
@@ -475,7 +485,8 @@ def comparison_plots(df, ts1, ts2):
     
     # Combine scatter plot and 1:1 line into an Overlay
     scatter_with_line = (scatter_plot * one_to_one_line).opts(
-        legend_position='top'
+        title='Observed vs Modeled SWE\nScatter with 1:1 Line',
+        legend_position='bottom_right'
     )
     
     # Explicitly convert Overlay to Layout
