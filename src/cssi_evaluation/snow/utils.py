@@ -36,11 +36,16 @@ def compute_water_year(
     return water_year.to_series()
 
 
-def same_day_swe_comparison(
+def modeled_swe_at_observed_peak(
     df: pd.DataFrame, obs_swe_cols: list[str], mod_swe_cols: list[str]
 ) -> pd.DataFrame:
     """
-    Computes a Same-Day SWE Comparison between modeled and observed values.
+    Extract modeled SWE values on the dates of observed peak (maximum) SWE.
+
+    This function evaluates model performance by comparing observed peak SWE
+    to the modeled SWE on the same calendar date. For each station and water year,
+    the date of maximum observed SWE is identified, and the modeled SWE value
+    at that date is extracted.
 
     Parameters
     ==========
@@ -119,13 +124,16 @@ def same_day_swe_comparison(
     return pd.concat(dfs)
 
 
-def different_day_swe_comparison(
+def modeled_vs_observed_peak_swe(
     df: pd.DataFrame, obs_swe_cols: list[str], mod_swe_cols: list[str]
 ) -> pd.DataFrame:
     """
-    Computes a Different-Day SWE Comparison between modeled and observed values, and
-    returns a DataFrame containing the maximums associates with both and their respective
-    datetimes.
+    Extract and compare modeled and observed peak (maximum) SWE values and their timing.
+
+    This function identifies the dates and magnitudes of peak SWE
+    independently for both observed and modeled time series. For each station
+    and water year, it extracts the maximum observed SWE and its occurrence date,
+    as well as the maximum modeled SWE and its occurrence date.
 
     Parameters
     ==========

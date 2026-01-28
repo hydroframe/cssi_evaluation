@@ -512,10 +512,10 @@ def plot_custom_scatter(df, site_code, highlight_months=None):
         y=f'NWM_{site_code}_swe_m',
         xlabel='Observed SWE (m)',
         ylabel='Modeled SWE (m)',
-        title='Observed vs. Modeled SWE',
+        title='Observed vs. Modeled SWE at ' + site_code,
         size=15,
-        width=400,
-        height=300,
+        width=500,
+        height=400,
         hover_cols=['index', 'month'],
         color='color'
     )
@@ -530,7 +530,7 @@ def plot_custom_scatter(df, site_code, highlight_months=None):
 
     # Combine scatter plot and 1:1 line into an Overlay
     scatter_with_line = (scatter_plot * one_to_one_line).opts(
-        legend_position='top'
+        legend_position='bottom_right'
     )
 
     return scatter_with_line
