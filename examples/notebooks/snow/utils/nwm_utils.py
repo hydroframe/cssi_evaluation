@@ -420,6 +420,27 @@ def compute_stats(df, ts1, ts2):
 
     return stats_table
 
+def compute_stats_period(
+    df, ts_obs, ts_mod, months
+):
+    df_sub = df[df.index.month.isin(months)]
+    """
+    Create a wrapper for compute_stats to filter dataframe by months before computing stats.
+    For example, to compute stats for melt season (April to July), use months=[4,5,6,7].
+
+    Parameters:
+    - df: DataFrame containing the data.
+    - ts_obs: Column name for observed timeseries in df.
+    - ts_mod: Column name for modeled timeseries in df.
+    - months: List of months to filter the data.
+
+    Returns:
+    - DataFrame with computed statistics.
+    """
+
+    return compute_stats(df_sub, ts_obs, ts_mod)
+
+
 def comparison_plots(df, ts1, ts2):
     '''
     Create a set of comparison plots (timeseries overlay and scatter plot with 1:1 line)
