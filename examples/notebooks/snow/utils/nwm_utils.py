@@ -380,19 +380,19 @@ def compute_stats(df, ts1, ts2):
     
     # Compute statistics for each time series
     stats = {
-        'Mean': [df[f'{ts1}'].mean(), df[f'{ts2}'].mean()],
-        'Median': [df[f'{ts1}'].median(), df[f'{ts2}'].median()],
-        'Standard Deviation': [df[f'{ts1}'].std(), df[f'{ts2}'].std()],
-        'Variance': [df[f'{ts1}'].var(), df[f'{ts2}'].var()],
-        'Min': [df[f'{ts1}'].min(), df[f'{ts2}'].min()],
-        'Max': [df[f'{ts1}'].max(), df[f'{ts2}'].max()]
+        'Mean [L]': [df[f'{ts1}'].mean(), df[f'{ts2}'].mean()],
+        'Median [L]': [df[f'{ts1}'].median(), df[f'{ts2}'].median()],
+        'Standard Deviation [L]': [df[f'{ts1}'].std(), df[f'{ts2}'].std()],
+        'Variance [L^2]': [df[f'{ts1}'].var(), df[f'{ts2}'].var()],
+        'Min [L]': [df[f'{ts1}'].min(), df[f'{ts2}'].min()],
+        'Max [L]': [df[f'{ts1}'].max(), df[f'{ts2}'].max()]
     }
 
     # Calculate correlation coefficients
     pearson_corr, _ = pearsonr(df[f'{ts1}'], df[f'{ts2}'])
     spearman_corr, _ = spearmanr(df[f'{ts1}'], df[f'{ts2}'])
 
-    # Compute Bias (mean error)
+    # Compute Mean Bias (mean error)
     bias = df[ts2].mean() - df[ts1].mean()
 
     # Compute Nash-Sutcliffe Efficiency (NSE)
@@ -412,11 +412,11 @@ def compute_stats(df, ts1, ts2):
 
     # Add Pearson and Spearman correlations as additional rows
     stats_table.loc[''] = [''] * len(stats_table.columns)  # Blank row for formatting
-    stats_table.loc['Pearson Correlation'] = [pearson_corr, '', '', '', '', '']
-    stats_table.loc['Spearman Correlation'] = [spearman_corr, '', '', '', '', '']
-    stats_table.loc['Bias (Modeled - Observed)'] = [bias, '', '', '', '', '']
-    stats_table.loc['Nash-Sutcliffe Efficiency (NSE)'] = [nse, '', '', '', '', '']
-    stats_table.loc['Kling-Gupta Efficiency (KGE)'] = [kge, '', '', '', '', '']
+    stats_table.loc['Pearson Correlation [-]'] = [pearson_corr, '', '', '', '', '']
+    stats_table.loc['Spearman Correlation [-]'] = [spearman_corr, '', '', '', '', '']
+    stats_table.loc['Bias (Modeled - Observed) [L]'] = [bias, '', '', '', '', '']
+    stats_table.loc['Nash-Sutcliffe Efficiency (NSE) [-]'] = [nse, '', '', '', '', '']
+    stats_table.loc['Kling-Gupta Efficiency (KGE) [-]'] = [kge, '', '', '', '', '']
 
     return stats_table
 

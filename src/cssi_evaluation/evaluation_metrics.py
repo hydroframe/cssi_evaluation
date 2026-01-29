@@ -206,7 +206,7 @@ def bias_from_R(x, y):
 
 def bias(x, y):
     """
-    Calculate bias.
+    Calculate relative bias.
 
     Parameters
     ----------
@@ -224,7 +224,7 @@ def bias(x, y):
 
 def percent_bias(x, y):
     """
-    Calculate percent bias.
+    Calculate relativepercent bias.
 
     Parameters
     ----------
