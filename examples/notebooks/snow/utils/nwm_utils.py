@@ -329,6 +329,9 @@ def plot_sites_within_domain(gdf_sites, domain_gdf, zoom_start=10):
     Returns:
     - folium.Map object ready to display.
     """
+    # Ensure CRS compatibility
+    if gdf_sites.crs != domain_gdf.crs:
+        gdf_sites = gdf_sites.to_crs(domain_gdf.crs)
 
     # Calculate center of the domain's bounding box
     minx, miny, maxx, maxy = domain_gdf.total_bounds
@@ -336,19 +339,31 @@ def plot_sites_within_domain(gdf_sites, domain_gdf, zoom_start=10):
     center_lon = (minx + maxx) / 2
 
     # Convert to GeoJSON (ensuring date fields are strings if necessary)
-    geojson_sites = gdf_sites.astype(dict(beginDate=str, endDate=str)).to_json()
+    #geojson_sites = gdf_sites.astype(dict(beginDate=str, endDate=str)).to_json()
     geojson_domain = domain_gdf.to_json()
 
     # Create folium map centered on the domain
     m = folium.Map([center_lat, center_lon], zoom_start=zoom_start)
 
+    # Determine which columns to use for popup/tooltip
+    if isinstance(gdf_sites, pd.DataFrame) and not isinstance(gdf_sites, gpd.GeoDataFrame):
+        # pandas DataFrame workflow
+        site_name_col = 'site_name'
+        site_id_col = 'site_id'
+    else:
+        # GeoDataFrame (GeoJSON) workflow
+        # Try common options; fallback to 'N/A'
+        site_name_col = next((c for c in ['Site Name', 'name'] if c in gdf_sites.columns), 'N/A')
+        site_id_col = next((c for c in ['Site Code', 'code'] if c in gdf_sites.columns), 'N/A')
+        
     # Add site markers
     for _, row in gdf_sites.iterrows():
         folium.Marker(
             location=[row['latitude'], row['longitude']],
-            popup=f"Site Name: {row.get('Site Name', row['name'])}<br>Site Code: {row.get('Site Code', row.code)}",
-            icon=folium.Icon(color="green"),
-            tooltip=row.get('Site Name', row['name'])
+            popup=f"Site Name: {row.get(site_name_col, 'N/A')}<br>"
+                  f"Site Code: {row.get(site_id_col, 'N/A')}",
+            tooltip=f"{row.get(site_name_col, 'Site')} ({row.get(site_id_col, '')})",
+            icon=folium.Icon(color="green")
         ).add_to(m)
 
     # Add watershed boundary as GeoJSON overlay
@@ -366,6 +381,7 @@ def plot_sites_within_domain(gdf_sites, domain_gdf, zoom_start=10):
     folium.LayerControl().add_to(m)
 
     return m
+
 
 def compute_stats(df, ts1, ts2):
     df = df[[f'{ts1}', f'{ts2}']]
