@@ -2,5 +2,4 @@
 *.coverage
 .DS_Store
 .ipynb_checkpoints
-/examples/notebooks/snow/domain_data
 

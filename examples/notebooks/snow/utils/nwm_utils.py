@@ -317,6 +317,72 @@ def compute_spatial_agg_from_obs(folder_path, agg):
 
     print(f"Averaged CSV saved to: {output_file}")
 
+# def plot_sites_within_domain(gdf_sites, domain_gdf, zoom_start=10):
+#     """
+#     Create and return a folium map showing observation sites within a given watershed boundary.
+
+#     Parameters:
+#     - gdf_sites: GeoDataFrame containing site locations.
+#     - domain_gdf: GeoDataFrame containing the watershed boundary.
+#     - zoom_start: Initial zoom level for the map (default=10).
+
+#     Returns:
+#     - folium.Map object ready to display.
+#     """
+#     # Ensure CRS compatibility
+#     if gdf_sites.crs != domain_gdf.crs:
+#         gdf_sites = gdf_sites.to_crs(domain_gdf.crs)
+
+#     # Calculate center of the domain's bounding box
+#     minx, miny, maxx, maxy = domain_gdf.total_bounds
+#     center_lat = (miny + maxy) / 2
+#     center_lon = (minx + maxx) / 2
+
+#     # Convert to GeoJSON (ensuring date fields are strings if necessary)
+#     #geojson_sites = gdf_sites.astype(dict(beginDate=str, endDate=str)).to_json()
+#     geojson_domain = domain_gdf.to_json()
+
+#     # Create folium map centered on the domain
+#     m = folium.Map([center_lat, center_lon], zoom_start=zoom_start)
+
+#     # Determine which columns to use for popup/tooltip
+#     if isinstance(gdf_sites, pd.DataFrame) and not isinstance(gdf_sites, gpd.GeoDataFrame):
+#         # pandas DataFrame workflow
+#         site_name_col = 'site_name'
+#         site_id_col = 'site_id'
+#     else:
+#         # GeoDataFrame (GeoJSON) workflow
+#         # Try common options; fallback to 'N/A'
+#         site_name_col = next((c for c in ['Site Name', 'name'] if c in gdf_sites.columns), 'N/A')
+#         site_id_col = next((c for c in ['Site Code', 'code'] if c in gdf_sites.columns), 'N/A')
+        
+#     # Add site markers
+#     for _, row in gdf_sites.iterrows():
+#         folium.Marker(
+#             location=[row['latitude'], row['longitude']],
+#             popup=f"Site Name: {row.get(site_name_col, 'N/A')}<br>"
+#                   f"Site Code: {row.get(site_id_col, 'N/A')}",
+#             tooltip=f"{row.get(site_name_col, 'Site')} ({row.get(site_id_col, '')})",
+#             icon=folium.Icon(color="green")
+#         ).add_to(m)
+
+#     # Add watershed boundary as GeoJSON overlay
+#     folium.GeoJson(geojson_domain, name='Watershed Boundary', style_function=lambda x: {"color": "lightcyan", "fillOpacity": 0.3}).add_to(m)
+
+#     # Add Esri Imagery layer
+#     esri_tiles = folium.TileLayer(
+#         tiles="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/Tile/{z}/{y}/{x}",
+#         attr="Esri, Maxar, Earthstar Geographics, and the GIS User Community",
+#         name="Esri Imagery"
+#     )
+#     esri_tiles.add_to(m)
+
+#     # Add layer control
+#     folium.LayerControl().add_to(m)
+
+#     return m
+
+
 def plot_sites_within_domain(gdf_sites, domain_gdf, zoom_start=10):
     """
     Create and return a folium map showing observation sites within a given watershed boundary.
@@ -329,56 +395,69 @@ def plot_sites_within_domain(gdf_sites, domain_gdf, zoom_start=10):
     Returns:
     - folium.Map object ready to display.
     """
+    import folium
+    import geopandas as gpd
+
     # Ensure CRS compatibility
     if gdf_sites.crs != domain_gdf.crs:
         gdf_sites = gdf_sites.to_crs(domain_gdf.crs)
 
-    # Calculate center of the domain's bounding box
+    # Helper to find appropriate column names
+    def find_column(columns, candidates):
+        return next((c for c in candidates if c in columns), None)
+
+    # Candidate column names (ordered by preference)
+    site_name_col = find_column(
+        gdf_sites.columns,
+        ['site_name', 'station_name', 'name', 'Site Name']
+    )
+    site_id_col = find_column(
+        gdf_sites.columns,
+        ['site_id', 'station_id', 'site_code', 'code', 'Site Code']
+    )
+
+    # Calculate center of the domain
     minx, miny, maxx, maxy = domain_gdf.total_bounds
     center_lat = (miny + maxy) / 2
     center_lon = (minx + maxx) / 2
 
-    # Convert to GeoJSON (ensuring date fields are strings if necessary)
-    #geojson_sites = gdf_sites.astype(dict(beginDate=str, endDate=str)).to_json()
-    geojson_domain = domain_gdf.to_json()
+    # Create folium map
+    m = folium.Map(location=[center_lat, center_lon], zoom_start=zoom_start)
 
-    # Create folium map centered on the domain
-    m = folium.Map([center_lat, center_lon], zoom_start=zoom_start)
-
-    # Determine which columns to use for popup/tooltip
-    if isinstance(gdf_sites, pd.DataFrame) and not isinstance(gdf_sites, gpd.GeoDataFrame):
-        # pandas DataFrame workflow
-        site_name_col = 'site_name'
-        site_id_col = 'site_id'
-    else:
-        # GeoDataFrame (GeoJSON) workflow
-        # Try common options; fallback to 'N/A'
-        site_name_col = next((c for c in ['Site Name', 'name'] if c in gdf_sites.columns), 'N/A')
-        site_id_col = next((c for c in ['Site Code', 'code'] if c in gdf_sites.columns), 'N/A')
-        
     # Add site markers
     for _, row in gdf_sites.iterrows():
+        site_name = row[site_name_col] if site_name_col else "Site"
+        site_id = row[site_id_col] if site_id_col else ""
+
         folium.Marker(
-            location=[row['latitude'], row['longitude']],
-            popup=f"Site Name: {row.get(site_name_col, 'N/A')}<br>"
-                  f"Site Code: {row.get(site_id_col, 'N/A')}",
-            tooltip=f"{row.get(site_name_col, 'Site')} ({row.get(site_id_col, '')})",
-            icon=folium.Icon(color="green")
+            location=[row.geometry.y, row.geometry.x],
+            popup=f"<b>{site_name}</b><br>Site ID: {site_id}",
+            tooltip=f"{site_name} ({site_id})",
+            icon=folium.Icon(color="green", icon="info-sign")
         ).add_to(m)
 
-    # Add watershed boundary as GeoJSON overlay
-    folium.GeoJson(geojson_domain, name='Watershed Boundary', style_function=lambda x: {"color": "lightcyan", "fillOpacity": 0.3}).add_to(m)
+    # Add watershed boundary
+    folium.GeoJson(
+        domain_gdf.to_json(),
+        name="Watershed Boundary",
+        style_function=lambda x: {
+            "color": "lightcyan",
+            "weight": 2,
+            "fillOpacity": 0.3,
+        },
+    ).add_to(m)
 
-    # Add Esri Imagery layer
-    esri_tiles = folium.TileLayer(
+    # Add Esri Imagery basemap
+    folium.TileLayer(
         tiles="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/Tile/{z}/{y}/{x}",
         attr="Esri, Maxar, Earthstar Geographics, and the GIS User Community",
-        name="Esri Imagery"
-    )
-    esri_tiles.add_to(m)
+        name="Esri Imagery",
+        overlay=False,
+        control=True,
+    ).add_to(m)
 
-    # Add layer control
-    folium.LayerControl().add_to(m)
+    # Layer control
+    folium.LayerControl(collapsed=False).add_to(m)
 
     return m
 
