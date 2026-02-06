@@ -318,6 +318,7 @@ def compute_spatial_agg_from_obs(folder_path, agg):
     print(f"Averaged CSV saved to: {output_file}")
     
 
+
 def plot_sites_within_domain(gdf_sites, domain_gdf, zoom_start=10):
     """
     Create and return a folium map showing observation sites within a given watershed boundary.
@@ -330,49 +331,72 @@ def plot_sites_within_domain(gdf_sites, domain_gdf, zoom_start=10):
     Returns:
     - folium.Map object ready to display.
     """
+    import folium
+    import geopandas as gpd
 
-    # Calculate center of the domain's bounding box
+    # Ensure CRS compatibility
+    if gdf_sites.crs != domain_gdf.crs:
+        gdf_sites = gdf_sites.to_crs(domain_gdf.crs)
+
+    # Helper to find appropriate column names
+    def find_column(columns, candidates):
+        return next((c for c in candidates if c in columns), None)
+
+    # Candidate column names (ordered by preference)
+    site_name_col = find_column(
+        gdf_sites.columns,
+        ['site_name', 'station_name', 'name', 'Site Name']
+    )
+    site_id_col = find_column(
+        gdf_sites.columns,
+        ['site_id', 'station_id', 'site_code', 'code', 'Site Code']
+    )
+
+    # Calculate center of the domain
     minx, miny, maxx, maxy = domain_gdf.total_bounds
     center_lat = (miny + maxy) / 2
     center_lon = (minx + maxx) / 2
 
-    # Convert to GeoJSON (ensuring date fields are strings if necessary)
-    geojson_sites = gdf_sites.astype(dict(beginDate=str, endDate=str)).to_json()
-    geojson_domain = domain_gdf.to_json()
-
-    # Create folium map centered on the domain
-    m = folium.Map([center_lat, center_lon], zoom_start=zoom_start)
+    # Create folium map
+    m = folium.Map(location=[center_lat, center_lon], zoom_start=zoom_start)
 
     # Add site markers
     for _, row in gdf_sites.iterrows():
-        popup_html = f"""
-        <div style="width:180px;">
-            <b>Site Name:</b> {row.get('Site Name', row['name'])}<br>
-            <b>Site Code:</b> {row.get('Site Code', row.code)}
-        </div>
-        """
+        site_name = row[site_name_col] if site_name_col else "Site"
+        site_id = row[site_id_col] if site_id_col else ""
+
         folium.Marker(
-            location=[row['latitude'], row['longitude']],
-            popup=folium.Popup(popup_html, max_width=200),
-            icon=folium.Icon(color="green"),
-            tooltip=row.get('Site Name', row['name'])
+            location=[row.geometry.y, row.geometry.x],
+            popup=f"<b>{site_name}</b><br>Site ID: {site_id}",
+            tooltip=f"{site_name} ({site_id})",
+            icon=folium.Icon(color="green", icon="info-sign")
         ).add_to(m)
 
-    # Add watershed boundary as GeoJSON overlay
-    folium.GeoJson(geojson_domain, name='Watershed Boundary', style_function=lambda x: {"color": "lightcyan", "fillOpacity": 0.3}).add_to(m)
+    # Add watershed boundary
+    folium.GeoJson(
+        domain_gdf.to_json(),
+        name="Watershed Boundary",
+        style_function=lambda x: {
+            "color": "lightcyan",
+            "weight": 2,
+            "fillOpacity": 0.3,
+        },
+    ).add_to(m)
 
-    # Add Esri Imagery layer
-    esri_tiles = folium.TileLayer(
+    # Add Esri Imagery basemap
+    folium.TileLayer(
         tiles="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/Tile/{z}/{y}/{x}",
         attr="Esri, Maxar, Earthstar Geographics, and the GIS User Community",
-        name="Esri Imagery"
-    )
-    esri_tiles.add_to(m)
+        name="Esri Imagery",
+        overlay=False,
+        control=True,
+    ).add_to(m)
 
-    # Add layer control
-    folium.LayerControl().add_to(m)
+    # Layer control
+    folium.LayerControl(collapsed=False).add_to(m)
 
     return m
+
 
 def compute_stats(df, ts1, ts2):
     df = df[[f'{ts1}', f'{ts2}']]
