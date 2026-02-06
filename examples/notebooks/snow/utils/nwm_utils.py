@@ -316,6 +316,7 @@ def compute_spatial_agg_from_obs(folder_path, agg):
     return averaged_df
 
     print(f"Averaged CSV saved to: {output_file}")
+    
 
 
 def plot_sites_within_domain(gdf_sites, domain_gdf, zoom_start=10):
@@ -403,19 +404,19 @@ def compute_stats(df, ts1, ts2):
     
     # Compute statistics for each time series
     stats = {
-        'Mean': [df[f'{ts1}'].mean(), df[f'{ts2}'].mean()],
-        'Median': [df[f'{ts1}'].median(), df[f'{ts2}'].median()],
-        'Standard Deviation': [df[f'{ts1}'].std(), df[f'{ts2}'].std()],
-        'Variance': [df[f'{ts1}'].var(), df[f'{ts2}'].var()],
-        'Min': [df[f'{ts1}'].min(), df[f'{ts2}'].min()],
-        'Max': [df[f'{ts1}'].max(), df[f'{ts2}'].max()]
+        'Mean [L]': [df[f'{ts1}'].mean(), df[f'{ts2}'].mean()],
+        'Median [L]': [df[f'{ts1}'].median(), df[f'{ts2}'].median()],
+        'Standard Deviation [L]': [df[f'{ts1}'].std(), df[f'{ts2}'].std()],
+        'Variance [L^2]': [df[f'{ts1}'].var(), df[f'{ts2}'].var()],
+        'Min [L]': [df[f'{ts1}'].min(), df[f'{ts2}'].min()],
+        'Max [L]': [df[f'{ts1}'].max(), df[f'{ts2}'].max()]
     }
 
     # Calculate correlation coefficients
     pearson_corr, _ = pearsonr(df[f'{ts1}'], df[f'{ts2}'])
     spearman_corr, _ = spearmanr(df[f'{ts1}'], df[f'{ts2}'])
 
-    # Compute Bias (mean error)
+    # Compute Mean Bias (mean error)
     bias = df[ts2].mean() - df[ts1].mean()
 
     # Compute Nash-Sutcliffe Efficiency (NSE)
@@ -435,44 +436,75 @@ def compute_stats(df, ts1, ts2):
 
     # Add Pearson and Spearman correlations as additional rows
     stats_table.loc[''] = [''] * len(stats_table.columns)  # Blank row for formatting
-    stats_table.loc['Pearson Correlation'] = [pearson_corr, '', '', '', '', '']
-    stats_table.loc['Spearman Correlation'] = [spearman_corr, '', '', '', '', '']
-    stats_table.loc['Bias (Modeled - Observed)'] = [bias, '', '', '', '', '']
-    stats_table.loc['Nash-Sutcliffe Efficiency (NSE)'] = [nse, '', '', '', '', '']
-    stats_table.loc['Kling-Gupta Efficiency (KGE)'] = [kge, '', '', '', '', '']
+    stats_table.loc['Pearson Correlation [-]'] = [pearson_corr, '', '', '', '', '']
+    stats_table.loc['Spearman Correlation [-]'] = [spearman_corr, '', '', '', '', '']
+    stats_table.loc['Bias (Modeled - Observed) [L]'] = [bias, '', '', '', '', '']
+    stats_table.loc['Nash-Sutcliffe Efficiency (NSE) [-]'] = [nse, '', '', '', '', '']
+    stats_table.loc['Kling-Gupta Efficiency (KGE) [-]'] = [kge, '', '', '', '', '']
 
     return stats_table
 
+def compute_stats_period(
+    df, ts_obs, ts_mod, months
+):
+    df_sub = df[df.index.month.isin(months)]
+    """
+    Create a wrapper for compute_stats to filter dataframe by months before computing stats.
+    For example, to compute stats for melt season (April to July), use months=[4,5,6,7].
+
+    Parameters:
+    - df: DataFrame containing the data.
+    - ts_obs: Column name for observed timeseries in df.
+    - ts_mod: Column name for modeled timeseries in df.
+    - months: List of months to filter the data.
+
+    Returns:
+    - DataFrame with computed statistics.
+    """
+
+    return compute_stats(df_sub, ts_obs, ts_mod)
+
+
 def comparison_plots(df, ts1, ts2):
     '''
-    ts1: observed
-    ts2: modeled
+    Create a set of comparison plots (timeseries overlay and scatter plot with 1:1 line)
+
+    Parameters:
+    df: dataframe with combined observed and modeled timeseries for each site  
+    ts1 (str): column heading for observed timeseries in df
+    ts2 (str): column heading for modeled timeseries in df
     '''
+
+    df = df.copy()
+    df.index.name = "date" # change the index name to "Date" for better hover tooltip display
+
     # Timeseries plot (Overlay)
     observed_plot = df.hvplot.line(
         y=ts1,
         ylabel='Snow Water Equivalent (m)',
+        xlabel='',
         label='Observed SWE',
         color='blue',
         line_width=2,
-        width=400,
-        height=300,
+        width=500,
+        height=400,
     )
 
     modeled_plot = df.hvplot.line(
     y=ts2,
     ylabel='Snow Water Equivalent (m)',
+    xlabel='',
     label='Modeled SWE',
     color='orchid',
     line_width=2,
-    width=400,
-    height=300,
+    width=500,
+    height=400,
     )
 
     # Overlay (combines both lines into a single visual object)
     timeseries_plot = (observed_plot * modeled_plot).opts(
-        title='Snow Water Equivalent Comparison',
-        legend_position='top',
+        title='Observed vs Modeled SWE\nDaily Time Series',
+        legend_position='top_right',
     )
 
     # Scatter plot
@@ -482,10 +514,10 @@ def comparison_plots(df, ts1, ts2):
         xlabel='Observed SWE (m)',
         ylabel='Modeled SWE (m)',
         color='black',
-        width=400,
-        height=300,
+        width=500,
+        height=400,
         size=15,
-        hover_cols=['index']  # This will add the date (index) to hover tooltip
+        hover_cols=['date']  # This will add the date (index) to hover tooltip
     )
 
     # Add 1:1 line (perfect match line)
@@ -498,7 +530,8 @@ def comparison_plots(df, ts1, ts2):
     
     # Combine scatter plot and 1:1 line into an Overlay
     scatter_with_line = (scatter_plot * one_to_one_line).opts(
-        legend_position='top'
+        title='Observed vs Modeled SWE\nScatter with 1:1 Line',
+        legend_position='bottom_right'
     )
     
     # Explicitly convert Overlay to Layout
@@ -524,10 +557,10 @@ def plot_custom_scatter(df, site_code, highlight_months=None):
         y=f'NWM_{site_code}_swe_m',
         xlabel='Observed SWE (m)',
         ylabel='Modeled SWE (m)',
-        title='Observed vs. Modeled SWE',
+        title='Observed vs. Modeled SWE at ' + site_code,
         size=15,
-        width=400,
-        height=300,
+        width=500,
+        height=400,
         hover_cols=['index', 'month'],
         color='color'
     )
@@ -542,7 +575,7 @@ def plot_custom_scatter(df, site_code, highlight_months=None):
 
     # Combine scatter plot and 1:1 line into an Overlay
     scatter_with_line = (scatter_plot * one_to_one_line).opts(
-        legend_position='top'
+        legend_position='bottom_right'
     )
 
     return scatter_with_line
