@@ -227,7 +227,7 @@ def report_max_dates_and_values(df, col_obs, col_mod):
     # Create a summary table as a DataFrame (nice for Jupyter display)
     summary_table = pd.DataFrame({
         'Data Source': [col_obs, col_mod],
-        'Peak SWE (m)': [max_obs, max_mod],
+        'Peak SWE (mm)': [max_obs, max_mod],
         'Date of Maximum': [date_obs.date(), date_mod.date()]
     })
 
@@ -481,7 +481,7 @@ def comparison_plots(df, ts1, ts2):
     # Timeseries plot (Overlay)
     observed_plot = df.hvplot.line(
         y=ts1,
-        ylabel='Snow Water Equivalent (m)',
+        ylabel='Snow Water Equivalent (mm)',
         xlabel='',
         label='Observed SWE',
         color='blue',
@@ -492,7 +492,7 @@ def comparison_plots(df, ts1, ts2):
 
     modeled_plot = df.hvplot.line(
     y=ts2,
-    ylabel='Snow Water Equivalent (m)',
+    ylabel='Snow Water Equivalent (mm)',
     xlabel='',
     label='Modeled SWE',
     color='orchid',
@@ -511,8 +511,8 @@ def comparison_plots(df, ts1, ts2):
     scatter_plot = df.hvplot.scatter(
         x=ts1,
         y=ts2,
-        xlabel='Observed SWE (m)',
-        ylabel='Modeled SWE (m)',
+        xlabel='Observed SWE (mm)',
+        ylabel='Modeled SWE (mm)',
         color='black',
         width=500,
         height=400,
@@ -534,30 +534,58 @@ def comparison_plots(df, ts1, ts2):
         legend_position='bottom_right'
     )
     
-    # Explicitly convert Overlay to Layout
-    timeseries_plot = hv.Layout([timeseries_plot])
-    
     # Combine both into a 1-row, 2-column layout
-    layout = hv.Layout([timeseries_plot, scatter_with_line]).opts(shared_axes=False)
+    layout = (timeseries_plot + scatter_with_line).opts(shared_axes=False)
+
 
     return layout
 
-def plot_custom_scatter(df, site_code, highlight_months=None):
-    
-    if highlight_months is None:
-        highlight_months = [10]  # Default if none provided
 
-    # Define color column based on the provided months
-    df = df.copy()  # Just in case you want to avoid modifying the original dataframe
-    df['color'] = df['month'].apply(lambda x: 'teal' if x in highlight_months else 'tomato')
+def plot_custom_scatter_SWE(
+    df,
+    obs_col,
+    mod_col,
+    *,
+    highlight_months=None,
+    month_col="month",
+    size=15,
+    width=500,
+    height=400,
+):
+    """
+    Flexible scatter plot with optional month highlighting and 1:1 line.
 
-    # Create the scatter plot
-    scatter_plot = df.hvplot.scatter(
-        x=f'CCSS_{site_code}_swe_m',
-        y=f'NWM_{site_code}_swe_m',
-        xlabel='Observed SWE (m)',
-        ylabel='Modeled SWE (m)',
-        title='Observed vs. Modeled SWE at ' + site_code,
+    Parameters
+    ----------
+    df : pandas.DataFrame
+        Input dataframe
+    obs_col : str
+        Column name for observed SWE
+    mod_col : str
+        Column name for modeled SWE
+    highlight_months : list[int], optional
+        Months to highlight (e.g., [10, 11])
+    month_col : str
+        Column containing month values
+    """
+
+    df = df.copy()
+
+    # Handle highlighting
+    if highlight_months is not None and month_col in df.columns:
+        df["color"] = df[month_col].apply(
+            lambda m: "teal" if m in highlight_months else "tomato"
+        )
+        color = "color"
+    else:
+        color = "black"
+
+    scatter = df.hvplot.scatter(
+        x=obs_col,
+        y=mod_col,
+        xlabel='Observed SWE (mm)',
+        ylabel='Modeled SWE (mm)',
+        title='Observed vs. Modeled SWE at ' + obs_col,
         size=15,
         width=500,
         height=400,
@@ -565,20 +593,16 @@ def plot_custom_scatter(df, site_code, highlight_months=None):
         color='color'
     )
 
-    # Add 1:1 line (perfect match line)
-    swe_max = max(df[f'CCSS_{site_code}_swe_m'].max(), df[f'NWM_{site_code}_swe_m'].max())
-    one_to_one_line = hv.Curve(([0, swe_max], [0, swe_max])).opts(
-        color='gray',
-        line_dash='dashed',
+    # 1:1 line
+    swe_max = max(df[obs_col].max(), df[mod_col].max())
+    one_to_one = hv.Curve(([0, swe_max], [0, swe_max])).opts(
+        color="gray",
+        line_dash="dashed",
         line_width=1,
-    ).relabel('1:1 Line')
+    ).relabel("1:1 Line")
 
-    # Combine scatter plot and 1:1 line into an Overlay
-    scatter_with_line = (scatter_plot * one_to_one_line).opts(
-        legend_position='bottom_right'
-    )
+    return (scatter * one_to_one).opts(legend_position="bottom_right")
 
-    return scatter_with_line
 
 def plot_grid_vector_data(ds_clip, data_var, time_index, shp, sites):
     hv.extension('bokeh')
