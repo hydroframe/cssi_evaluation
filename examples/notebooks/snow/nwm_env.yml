@@ -38,3 +38,4 @@ dependencies:
       - python-dotenv
       - requests-cache
       - hf_hydrodata
+      - subsettools

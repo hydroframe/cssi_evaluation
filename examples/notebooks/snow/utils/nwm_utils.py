@@ -12,6 +12,7 @@ import hvplot.pandas
 import holoviews as hv
 import hvplot.xarray
 from holoviews import opts
+import xarray as xr
 import geopandas as gpd
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
@@ -465,14 +466,14 @@ def compute_stats_period(
     return compute_stats(df_sub, ts_obs, ts_mod)
 
 
-def comparison_plots(df, ts1, ts2):
+def comparison_plots(df, ts_obs, ts_mod):
     '''
     Create a set of comparison plots (timeseries overlay and scatter plot with 1:1 line)
 
     Parameters:
     df: dataframe with combined observed and modeled timeseries for each site  
-    ts1 (str): column heading for observed timeseries in df
-    ts2 (str): column heading for modeled timeseries in df
+    ts_obs (str): column heading for observed timeseries in df
+    ts_mod (str): column heading for modeled timeseries in df
     '''
 
     df = df.copy()
@@ -480,7 +481,7 @@ def comparison_plots(df, ts1, ts2):
 
     # Timeseries plot (Overlay)
     observed_plot = df.hvplot.line(
-        y=ts1,
+        y=ts_obs,
         ylabel='Snow Water Equivalent (mm)',
         xlabel='',
         label='Observed SWE',
@@ -491,7 +492,7 @@ def comparison_plots(df, ts1, ts2):
     )
 
     modeled_plot = df.hvplot.line(
-    y=ts2,
+    y=ts_mod,
     ylabel='Snow Water Equivalent (mm)',
     xlabel='',
     label='Modeled SWE',
@@ -509,8 +510,8 @@ def comparison_plots(df, ts1, ts2):
 
     # Scatter plot
     scatter_plot = df.hvplot.scatter(
-        x=ts1,
-        y=ts2,
+        x=ts_obs,
+        y=ts_mod,
         xlabel='Observed SWE (mm)',
         ylabel='Modeled SWE (mm)',
         color='black',
@@ -521,7 +522,7 @@ def comparison_plots(df, ts1, ts2):
     )
 
     # Add 1:1 line (perfect match line)
-    swe_max = max(df[ts1].max(), df[ts2].max())
+    swe_max = max(df[ts_obs].max(), df[ts_mod].max())
     one_to_one_line = hv.Curve(([0, swe_max], [0, swe_max])).opts(
         color='gray',
         line_dash='solid',
