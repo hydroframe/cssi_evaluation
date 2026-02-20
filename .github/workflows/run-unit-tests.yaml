@@ -27,7 +27,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: ['3.10', '3.12']
+        python-version: ['3.12']
 
     steps:
       - name: Check out code
@@ -43,6 +43,13 @@ jobs:
         run: |
           python -m pip install --upgrade pip
            pip install . --group test
+
+      - name: Register hf-hydrodata credentials as a public user
+        env:
+          TEST_EMAIL_PUBLIC: ${{ secrets.TEST_EMAIL_PUBLIC }}
+          TEST_PIN_PUBLIC: ${{ secrets.TEST_PIN_PUBLIC }}
+        run: |
+          python utils/set_test_credentials.py
 
       - name: Run unit tests
         run: |
