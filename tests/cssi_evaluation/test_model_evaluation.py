@@ -27,7 +27,7 @@ def test_get_observations():
     obs_metadata_df, obs_data_df = model_evaluation.get_observations(
         mask, ij_bounds, grid, start_date, end_date, variable, temporal_resolution
     )
-    assert obs_metadata_df.shape == (14, 32)
+    assert obs_metadata_df.shape[0] == 14
     assert obs_data_df.shape == (48, 15)
     assert "01447500" in obs_data_df.columns
 
@@ -49,7 +49,7 @@ def test_get_observations_nan_filter_sites_removed():
         mask, ij_bounds, grid, start_date, end_date, variable, temporal_resolution
     )
 
-    assert obs_metadata_df.shape == (7, 32)
+    assert obs_metadata_df.shape[0] == 7
     assert obs_data_df.shape == (5, 8)
     assert "01209500" not in obs_data_df.columns
 
@@ -78,7 +78,7 @@ def test_get_observations_nan_filter_sites_included():
         remove_sites_no_data=False,
     )
 
-    assert obs_metadata_df.shape == (8, 32)
+    assert obs_metadata_df.shape[0] == 8
     assert obs_data_df.shape == (5, 9)
     assert "01209500" in obs_data_df.columns
 

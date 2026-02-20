@@ -49,7 +49,7 @@ jobs:
           TEST_EMAIL_PUBLIC: ${{ secrets.TEST_EMAIL_PUBLIC }}
           TEST_PIN_PUBLIC: ${{ secrets.TEST_PIN_PUBLIC }}
         run: |
-          python utils/set_test_credentials.py
+          python utilities/set_test_credentials.py
 
       - name: Run unit tests
         run: |
