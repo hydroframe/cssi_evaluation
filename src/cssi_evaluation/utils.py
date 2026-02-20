@@ -185,6 +185,9 @@ def initialize_metrics_df(obs_metadata_df, metrics_list):
         ["site_id", "site_name", "latitude", "longitude", "domain_i", "domain_j"]
     ].copy()
     for m in metrics_list:
-        metrics_df[f"{m}"] = np.nan
+        if m == "condon":
+            metrics_df[f"{m}"] = ""
+        else:
+            metrics_df[f"{m}"] = np.nan
 
     return metrics_df
