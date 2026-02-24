@@ -39,3 +39,4 @@ dependencies:
       - requests-cache
       - hf_hydrodata
       - subsettools
+      - jupyter_bokeh
