@@ -38,3 +38,5 @@ dependencies:
       - python-dotenv
       - requests-cache
       - hf_hydrodata
+      - subsettools
+      - jupyter_bokeh

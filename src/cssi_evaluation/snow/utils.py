@@ -3,6 +3,7 @@ Snow evaluation utility functions
 """
 
 import pandas as pd
+import numpy as np
 from typing import Any, Union
 
 
@@ -337,4 +338,59 @@ def compute_melt_period_statistics(
                 continue
 
     return pd.DataFrame(result)
+
+def compute_snow_timing_grid(grid_swe_da, water_year, threshold=1.0, smooth_window=5):
+    """
+    Compute peak SWE timing, melt-out timing, and snow duration
+    for a single water year.
+
+    Parameters
+    ----------
+    grid_swe_da : xarray.DataArray
+        SWE with dims (time, ny, nx) and coordinate 'water_year'
+    water_year : int
+        Water year to analyze (e.g., 2004)
+    threshold : float
+        SWE threshold for defining snow-free (default = 1.0 mm)
+    smooth_window : int
+        Rolling window size for smoothing (default = 5 days)
+
+    Returns
+    -------
+    peak_wy_day : DataArray (ny, nx)
+    melt_wy_day : DataArray (ny, nx)
+    snow_duration : DataArray (ny, nx)
+    """
+
+    # Select only the specified water year
+    swe_wy = grid_swe_da.sel(time=grid_swe_da.water_year == water_year)
+
+    if swe_wy.time.size == 0:
+        raise ValueError(f"No data found for water year {water_year}")
+
+    # Peak SWE date
+    peak_date = swe_wy.idxmax(dim="time")
+    wy_start = swe_wy.time.values[0]
+    print(f"Water year {water_year} starts on {pd.to_datetime(wy_start)}")
+    # Store the peak date as a water-year day number for easier comparison across grid cells (The number of days after October 1 when peak SWE occurs)
+    peak_wy_day = (peak_date - wy_start) / np.timedelta64(1, "D")
+
+    # Smooth SWE 
+    swe_smooth = swe_wy.rolling(time=smooth_window, center=True).mean()
+
+    # Define snow-free condition; where the 5-day rolling mean SWE falls below the threshold to identify snow-free conditions
+    snow_free = swe_smooth <= threshold
+
+    # Mask snow free and make sure it's the after peak (i.e., not considering the snow-free period in the fall)
+    after_peak = swe_wy.time >= peak_date
+    snow_free_after_peak = snow_free.where(after_peak)
+ 
+    # Melt-out date
+    melt_date = snow_free_after_peak.idxmax(dim="time")
+    melt_wy_day = (melt_date - wy_start) / np.timedelta64(1, "D")
+
+    # Snow duration 
+    snow_duration = melt_wy_day - peak_wy_day
+
+    return peak_wy_day, melt_wy_day, snow_duration
 
