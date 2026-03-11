@@ -15,6 +15,21 @@ Evaluation Metrics Utilities
 - Total Difference
 - Condon category (low/high bias, poor/good shape)
 """
+### LOCATION OF ORIGINAL FUNCTIONS
+# evaluation_metrics.RMSE()
+# evaluation_metrics.MSE()
+# evaluation_metrics.pearson_R()
+# evaluation_metrics.spearman_rank()
+# evaluation_metrics.NSE()
+# evaluation_metrics.KGE()
+# evaluation_metrics.R_squared()
+# evaluation_metrics.bias_from_R()
+# evaluation_metrics.bias()
+# evaluation_metrics.percent_bias()
+# evaluation_metrics.absolute_relative_bias()
+# evaluation_metrics.total_difference()
+# evaluation_metrics.condon()
+
 
 # pylint: disable=C0103
 

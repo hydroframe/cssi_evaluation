@@ -2,39 +2,16 @@
 Snow evaluation utility functions
 """
 
+### LOCATION OF ORIGINAL FUNCTIONS
+# snow_utils.modeled_swe_at_observed_peak()
+# snow_utils.modeled_vs_observed_peak_swe()
+# snow_utils.compute_melt_period()
+# snow_utils.compute_melt_period_statistics()
+
+
 import pandas as pd
 import numpy as np
 from typing import Any, Union
-
-
-def compute_water_year(
-    df: pd.DataFrame, inplace: bool = False
-) -> Union[pd.Series, None]:
-    """
-    Computes the water year for a given time-index.
-
-    Parameters
-    ==========
-    df: pandas.DataFrame
-        A pandas dataframe containing a datetime[64] index.
-    inplace: bool -> False
-        A flag to indicate if the water year computation should be returned
-        as a column in the input dataframe.
-
-    Returns
-    =======
-    Union[pandas.Series, pandas.DataFrame]
-        If inplace is False, a pandas series containing water year is returned.
-        If inplace is True, water year is added to the original dataframe and None is returned
-    """
-
-    water_year = df.index.map(lambda x: x.year + 1 if x.month > 9 else x.year)
-
-    if inplace:
-        df["Water_Year"] = water_year
-        return None
-
-    return water_year.to_series()
 
 
 def modeled_swe_at_observed_peak(
