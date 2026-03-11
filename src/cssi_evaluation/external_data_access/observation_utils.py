@@ -5,33 +5,12 @@ External data access functions for observations, specifically for observations n
 # nwm_utils.getSNOTELData()
 # nwm_utils.getCCSSData()
 
-
-
-import os
-import sys
-import pytz
 import time
 import urllib3
-import datetime
-import numpy as np
 import pandas as pd
-import pyproj
-import folium
-import hvplot.pandas
-import holoviews as hv
-import hvplot.xarray
-from holoviews import opts
-import xarray as xr
-import geopandas as gpd
-import matplotlib.pyplot as plt
-import matplotlib.dates as mdates
-import xyzservices.providers as xyz
-from scipy.stats import pearsonr, spearmanr
+
 pd.options.mode.chained_assignment = None
 
-import geoviews as gv
-import geoviews.tile_sources as gts
-gv.extension('bokeh')
 
 def getSNOTELData(SiteName, SiteID, StateAbb, StartDate, EndDate, OutputFolder):
 	url1 = 'https://wcc.sc.egov.usda.gov/reportGenerator/view_csv/customMultiTimeSeriesGroupByStationReport/daily/start_of_period/'
@@ -68,10 +47,9 @@ def getSNOTELData(SiteName, SiteID, StateAbb, StartDate, EndDate, OutputFolder):
 	dl_elapsed = time.time() - dl_start_time
 	print(f'✅ Retrieved data for {SiteName}, {SiteID} in {dl_elapsed:.2f} seconds\n')
 
-def getCCSSData(SiteName, SiteID, StartDate, EndDate, OutputFolder):
-    StateAbb = 'Ca'
+def getCCSSData(SiteName, SiteID, StateAbb, StartDate, EndDate, OutputFolder):
     url1 = 'https://wcc.sc.egov.usda.gov/reportGenerator/view_csv/customSingleStationReport/daily/start_of_period/' 
-    url2 = f'{SiteID}:CA:MSNT%257Cid=%2522%2522%257Cname/'
+    url2 = f'{SiteID}:{StateAbb}:MSNT%257Cid=%2522%2522%257Cname/'
     url3 = f'{StartDate},{EndDate}/'
     url4 = 'WTEQ::value?fitToScreen=false'
     url = url1+url2+url3+url4

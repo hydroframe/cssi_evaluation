@@ -23,11 +23,28 @@ time series plots, scatter plots, spatial maps, and evaluation diagrams.
 """Functions to support plotting within the model evaluation module."""
 
 import os
-from matplotlib.lines import Line2D
+
+import numpy as np
 import pandas as pd
+
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
-import matplotlib.font_manager as fm
+from matplotlib.lines import Line2D
+
+import xarray as xr
+import geopandas as gpd
+
+import holoviews as hv
+import hvplot.pandas
+import hvplot.xarray
+
+import geoviews as gv
+import geoviews.tile_sources as gts
+
+import folium
+import xyzservices.providers as xyz
+
+gv.extension("bokeh")
 
 SITE_COLORS = {
     "stream gauge": "blue",
@@ -517,31 +534,6 @@ def plot_condon_diagram(metrics_df, variable, output_dir="."):
 
 
 # from Irene's nwm_utils.py
-import os
-import sys
-import pytz
-import time
-import urllib3
-import datetime
-import numpy as np
-import pandas as pd
-import pyproj
-import folium
-import hvplot.pandas
-import holoviews as hv
-import hvplot.xarray
-from holoviews import opts
-import xarray as xr
-import geopandas as gpd
-import matplotlib.pyplot as plt
-import matplotlib.dates as mdates
-import xyzservices.providers as xyz
-from scipy.stats import pearsonr, spearmanr
-pd.options.mode.chained_assignment = None
-
-import geoviews as gv
-import geoviews.tile_sources as gts
-gv.extension('bokeh')
 
 
 def plot_sites_within_domain(gdf_sites, domain_gdf, zoom_start=10):

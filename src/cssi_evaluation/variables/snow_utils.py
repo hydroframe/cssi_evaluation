@@ -11,7 +11,11 @@ Snow evaluation utility functions
 
 import pandas as pd
 import numpy as np
-from typing import Any, Union
+import xarray as xr
+
+from typing import Any
+
+from cssi_evaluation.utils.dataPrep_utils import compute_water_year
 
 
 def modeled_swe_at_observed_peak(

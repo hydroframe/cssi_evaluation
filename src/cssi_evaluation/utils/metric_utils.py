@@ -38,6 +38,22 @@ from sklearn.metrics import mean_squared_error as mse
 from sklearn.metrics import r2_score, root_mean_squared_error
 import numpy as np
 
+METRICS_DICT = {
+    "rmse": RMSE,
+    "mse": MSE,
+    "pearson_r": pearson_R,
+    "spearman_rho": spearman_rank,
+    "nse": NSE,
+    "kge": KGE,
+    "r_squared": R_squared,
+    "bias_from_r": bias_from_R,
+    "bias": bias,
+    "percent_bias": percent_bias,
+    "abs_rel_bias": absolute_relative_bias,
+    "total_difference": total_difference,
+    "condon": condon,
+}
+
 
 def RMSE(x, y):
     """

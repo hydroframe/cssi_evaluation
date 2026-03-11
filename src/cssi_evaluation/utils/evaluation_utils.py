@@ -4,7 +4,11 @@ Evaluation workflow utilities.
 Helper functions that orchestrate model–observation comparisons,
 metric calculation, and summary statistics.
 """
-# IMPORTS NEEDED FOR FUNCTION DEFINITIONS***
+import numpy as np
+import pandas as pd
+from scipy.stats import pearsonr, spearmanr
+from cssi_evaluation.utils.metric_utils import METRICS_DICT ### This is an updated import statement, but may need to be updated again depending on where the METRICS_DICT is located in the final code structure.
+from cssi_evaluation.utils.dataPrep_utils import initialize_metrics_df ### This is an updated import statement, but may need to be updated
 
 ### LOCATION OF ORIGINAL FUNCTIONS
 # nwm_utils.report_max_dates_and_values()
@@ -85,7 +89,7 @@ def calculate_metrics(
         metrics_list = list(METRICS_DICT.keys())
 
     # Initialize empty metrics DataFrame to store calculated comparison metrics.
-    metrics_df = utils.initialize_metrics_df(obs_metadata_df, metrics_list)
+    metrics_df = initialize_metrics_df(obs_metadata_df, metrics_list)
 
     num_sites = obs_data_df.shape[1] - 1  # first column is 'date'
 
