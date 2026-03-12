@@ -28,6 +28,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 from matplotlib.lines import Line2D
+import matplotlib.font_manager as fm
 import xarray as xr
 import geopandas as gpd
 import holoviews as hv
