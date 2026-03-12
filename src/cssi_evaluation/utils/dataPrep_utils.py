@@ -98,6 +98,13 @@ from hf_hydrodata import get_gridded_data
 
 HYDRODATA = "/hydrodata"
 
+def get_water_year(date):
+    """Return the water year for a given date."""
+    if date.month in range(1, 10):
+        return date.year
+    else:
+        return date.year + 1
+
 def remove_sparse_columns(df, min_obs_pct=None, min_obs_count=None):
     """
     Removes columns from a DataFrame that have fewer non-missing values than the specified threshold.
