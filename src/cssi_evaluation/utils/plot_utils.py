@@ -23,24 +23,18 @@ time series plots, scatter plots, spatial maps, and evaluation diagrams.
 """Functions to support plotting within the model evaluation module."""
 
 import os
-
 import numpy as np
 import pandas as pd
-
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 from matplotlib.lines import Line2D
-
 import xarray as xr
 import geopandas as gpd
-
 import holoviews as hv
 import hvplot.pandas
 import hvplot.xarray
-
 import geoviews as gv
 import geoviews.tile_sources as gts
-
 import folium
 import xyzservices.providers as xyz
 

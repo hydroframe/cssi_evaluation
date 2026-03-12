@@ -252,7 +252,12 @@ def compute_melt_period(
         )
 
     melt_period_days = (melt_end_date - peak_date).days
-    melt_rate = peak_swe / melt_period_days
+
+    # Compute melt rate, but handle the case where melt_period_days is zero to avoid division by zero
+    if melt_period_days == 0:
+        melt_rate = np.nan
+    else:
+        melt_rate = peak_swe / melt_period_days
 
     return {
         "peak_date": peak_date,

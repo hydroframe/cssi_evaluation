@@ -172,7 +172,7 @@ def report_max_dates_and_values(df, col_obs, col_mod):
 
 def compute_stats(df, ts1, ts2):
     df = df[[f'{ts1}', f'{ts2}']]
-    df.dropna(inplace=True)  # Both Pearson and Spearman correlations cannot handle NaN values, so make sure to drop nan values before any calculatoin.
+    df = df[[ts1, ts2]].dropna()  # Both Pearson and Spearman correlations cannot handle NaN values, so make sure to drop nan values before any calculatoin.
     
     # Compute statistics for each time series
     stats = {
