@@ -1,6 +1,6 @@
 # cssi_evaluation
 
-`cssi_evaluation` contains tools for evaluating hydrologic model outputs against
+This directory contains tools for evaluating hydrologic model outputs against
 observations and derived metrics.
 
 - **Models** – model-specific preprocessing and data handling
