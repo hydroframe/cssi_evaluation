@@ -224,6 +224,9 @@ def get_observations(
         grid_bounds=ij_bounds,
     )
 
+    # Filter out observations that don't have {grid}_i and {grid}_j values
+    metadata_df = metadata_df.dropna(subset=[f"{grid}_i", f"{grid}_j"])
+
     # Shift i/j coordinates so that they index starting from the regional
     # bounding box origin instead of the overall CONUS grid origin
     if ij_bounds is not None:
