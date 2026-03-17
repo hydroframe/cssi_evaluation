@@ -1,0 +1,21 @@
+name: cssi_evaluation
+channels:
+  - conda-forge
+dependencies:
+  - python=3.10
+  - pip
+  - gdal
+  - geopandas=0.12.2
+  - rasterio=1.3.6
+  - fiona
+  - rioxarray=0.15.1
+  - pyproj
+  - libtiff=4.5.0
+  - holoviews=1.19.0
+  - geoviews=1.11.0
+  - param=2.0.1
+  - nodejs
+  - zarr=2.13.3
+  - s3fs=2023.6.0
+  - pip:
+      - "-e .[notebooks,dev]"
