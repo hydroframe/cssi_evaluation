@@ -1,6 +1,6 @@
 ## Creating the recommended local environment
 
-Run these commands from the repository root:
+Run these commands from the repository root. This assumes that conda and mamba are already installed (e.g., conda install mamba -n base -c conda-forge).
 
     mamba env create -f cssi_env.yml
 
