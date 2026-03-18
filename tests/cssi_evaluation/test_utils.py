@@ -9,7 +9,9 @@ import numpy as np
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../src")))
 
-from cssi_evaluation import utils
+from cssi_evaluation.utils.amys_files_just_for_reorg import (
+    utils as reorg_utils,
+)
 
 
 def test_check_mask_shape():
@@ -18,7 +20,7 @@ def test_check_mask_shape():
     ij_bounds = [100, 100, 102, 108]
 
     # check no exception raised
-    utils.check_mask_shape(mask, ij_bounds)
+    reorg_utils.check_mask_shape(mask, ij_bounds)
 
 
 def test_check_mask_shape_error():
@@ -27,7 +29,7 @@ def test_check_mask_shape_error():
         mask = np.zeros(shape=(8, 2))
         ij_bounds = [100, 100, 101, 108]
 
-        utils.check_mask_shape(mask, ij_bounds)
+        reorg_utils.check_mask_shape(mask, ij_bounds)
     assert (
         str(exc.value) == "The mask shape is (8, 2) but the ij_bounds is shape (8, 1)"
     )
@@ -38,7 +40,7 @@ def test_get_domain_indices():
     ij_bounds = [1000, 1000, 1500, 1500]
     conus_indices = [1250, 1300]
 
-    assert utils.get_domain_indices(ij_bounds, conus_indices) == (250, 300)
+    assert reorg_utils.get_domain_indices(ij_bounds, conus_indices) == (250, 300)
 
 
 def test_initialize_metrics_df():
@@ -54,7 +56,7 @@ def test_initialize_metrics_df():
         }
     )
 
-    mock_metrics_df = utils.initialize_metrics_df(
+    mock_metrics_df = reorg_utils.initialize_metrics_df(
         mock_obs_metadata_df, ["mse", "rmse", "spearman_rho"]
     )
     assert mock_metrics_df.shape == (3, 9)
