@@ -1,38 +1,176 @@
-# cssi_evaluation
+# Hydrologic Model Evaluation Framework
 
-Code used to compare ParFlow simulated output to real-world observations.
+This repository contains a hydrologic model evaluation framework for comparing modeled outputs against observations and reference datasets at national scale. The goal is not only to help users find data, but to provide a structured, reproducible workflow for model evaluation and benchmarking across hydrologic models, variables, and spatial scales.
 
-Please see `example_workflow.ipynb` for an example of how the functions in this module are intended to be used with each other. Note that the input in this example is a mask generated from a HUC (list) using `subsettools`. This is one method of generating a mask, but the workflow will work with any mask and accompanying bounds within either the conus1 or conus2 domain. This workflow is restricted to comparisons within the conus1 or conus2 domains. If you wish to use the entire conus1 or conus2 domain, set `ij_bounds = None` and use `utils.get_conus_mask("conus2")` to obtain the mask for the full conus2 grid (or likewise for conus1).
+This effort builds on earlier NSF-supported work from the HydroGEN and HydroFrame projects. Those projects focused on building and serving large-scale hydrologic modeling capabilities. In that work, it became clear that community-scale options for evaluating national and regional model outputs remain limited. `HydroData` was initially developed to meet internal project needs for data access, but broader engagement showed a clear need for a framework that connects those data resources to evaluation workflows. This repository, aka `cssi_evaluation`, addresses that need.
 
-This module contains three distinct steps, which will be linked up in the final workflow:
-  1. Gather site-level observations for a requested domain
-  2. Extract and format output from ParFlow grid cells that match up with site locations
-  3. Calculate metrics and produce plots to compare outputs from (1) and (2)
+## What this framework does
 
-Supported variables:
-  - 'streamflow' (USGS) ('hourly' or 'daily')
-  - 'water_table_depth' (USGS) ('hourly' or 'daily')
-  - 'swe' (SNOTEL) ('daily')
-  - 'latent_heat' (AmeriFlux) ('hourly') 
+The framework brings together several pieces that operate as one workflow:
 
-Supported metrics:
-  - 'r2': Correlation of determination
-  - 'spearman_rho': Spearman's rank correlation coefficient
-  - 'mse': Mean Squared Error
-  - 'rmse': Root Mean Squared Error
-  - 'bias': bias
-  - 'percent_bias': percent bias
-  - 'abs_rel_bias': absolute relative bias
-  - 'total_difference': total difference (ParFlow minus observations)
-  - 'pearson_r': Pearson's R
-  - 'nse': Nash-Sutcliffe Efficiency
-  - 'kge': Kling-Gupta Efficiency
-  - 'bias_from_r': bias from R ([equation 16](https://www.nature.com/articles/srep19401))
-  - 'condon': Condon category (low/high bias, poor/good shape)
+1. Model-specific adapters that extract and **format model outputs**.
+2. Data-access tools that **retrieve observations** and reference datasets.
+3. Shared evaluation utilities for **preprocessing, statistics, and plotting**.
+4. **Variable-specific diagnostics** for process-aware evaluation of particular hydrologic variables.
 
-Supported plots (see `plots.py` for full API details):
-  - `plot_obs_locations()`: Given observation metadata, plot site locations within a mask. Sites are color-coded by site type, if multiple types of sites are present.
-  - `plot_time_series()`: Plot ParFlow time series against observation time series; one plot per site.
-  - `plot_compare_scatter()`: Plot a single scatterplot comparing the average values for all sites for ParFlow vs. observations.
-  - `plot_metric_map()`: Plot sites within a mask, colored by their value on a given comparison metric; one plot per metric.
-  - `plot_condon_diagram()`: Plot Condon diagram comparing absolute relative bias to Spearman's rho.
+The operational framework lives under [`src/cssi_evaluation/`](src/cssi_evaluation). The top-level [`docs/`](docs), [`examples/`](examples), and [`tests/`](tests) directories support the framework, but they are not themselves workflow stages.
+
+## Current scope
+
+We have started developing this framework as a **Python** package to facilitate evaluation of modeled results against real-world data. At present, the repository reflects two main modeling paths:
+
+- ParFlow-oriented evaluation, especially for ParFlow-CONUS2.1
+- National Water Model (NWM) workflows that are being organized alongside the same framework structure
+
+Future development is expected to add both additional site-based datasets and gridded remote-sensing datasets.
+
+HydroData-related packages such as `hf_hydrodata` and `subsettools` are external dependencies used by this framework. They are not part of the source tree in this repository, but they are important data-access inputs, especially for the ParFlow-oriented workflow. Using those packages allows acquisition of comparison datasets to remain reproducible in code.
+
+## How users interact with the framework
+
+Users primarily interact with the package through Python functions and example notebooks. Typical workflows allow a user to define:
+
+- set up environment with required packages
+- define a domain of interest by HUC, latitude/longitude bounding box, or upstream drainage area
+- define a time range for evaluation
+- select one or more observational variables to compare against model output
+
+The package includes shared statistical metrics such as RMSE, MSE, Pearson correlation, Spearman rank correlation, Nash-Sutcliffe Efficiency, Kling-Gupta Efficiency, R-squared, bias, percent bias, absolute relative bias, total difference, and Condon category. It also includes plotting utilities for site-level time series and mapped summaries of evaluation metrics across sites.
+
+## General metrics and variable-specific diagnostics
+
+The repository intentionally separates model-agnostic evaluation tools from diagnostics that are specific to a variable or process.
+
+- General metrics apply broadly across time series and model types.
+- Variable-specific diagnostics are evaluation methods designed around the scientific behavior of a particular hydrologic variable.
+
+For example, continuous time-series metrics are useful but may not fully capture seasonal snow behavior. Snow evaluation often requires targeted diagnostics such as:
+
+- peak SWE same-day comparison
+- peak SWE different-day comparison
+- melt timing comparison
+
+These diagnostics complement general statistical metrics by focusing on process-relevant behaviors rather than only full-series agreement.
+
+## Framework workflow
+
+The framework standardizes modeled and observational data before applying shared utilities and variable-specific diagnostic functions. 
+Dashed arrows indicate repository locations, not workflow direction. Blue boxes represent core workflow components, green circles show 
+outputs generated by the workflow, and yellow boxes denote workflow sections.
+
+
+```mermaid
+flowchart LR
+    subgraph A[Model Output Sources]
+        direction LR
+        A1[ParFlow outputs]
+        A2[NWM outputs]
+        A3[Future model<br/>outputs]
+    end
+
+    subgraph B[Observation Data Sources]
+        direction LR
+        BS[" "]
+        B1[HydroData-related<br/>packages]
+        B2[External observation<br/>sources]
+        B3[Other reference<br/>datasets]
+    end
+
+    E([Model-Specific Adapters])
+    F([Data Access Layer])
+    I((Standardized evaluation-ready data))
+
+    subgraph C[General Evaluation Utilities]
+        C1[General statistical metrics]
+        C2[Plots and summaries]
+    end
+
+    subgraph D[Process-aware Evaluation Utilities]
+        direction LR
+        DS[" "]
+        D1[Streamflow diagnostics]
+        D2[Snow diagnostics]
+        D3[Additional variables]
+    end
+
+    G([Shared Evaluation Utils])
+    H([Variable-Specific Diagnostics])
+
+    A --> E
+    B --> F
+    E --> I
+    F --> I
+    I --> C
+    I --> D
+    C --> G
+    D --> H
+    G --> J((Evaluation Results))
+    H --> J
+
+    subgraph P[Repository Paths]
+        direction LR
+        P1[src/cssi_evaluation/models/]
+        P2[src/cssi_evaluation/external_data_access/]
+        P3[src/cssi_evaluation/utils/]
+        P4[src/cssi_evaluation/variables/]
+    end
+
+    E -.-> P1
+    F -.-> P2
+    G -.-> P3
+    H -.-> P4
+
+    classDef sourcegroup fill:#d9d9d9,stroke:#7a7a7a,color:#111;
+    classDef source fill:#efe8db,stroke:#8a6b2f,color:#111;
+    classDef framework fill:#bcdcf5,stroke:#1f5f99,color:#111;
+    classDef results fill:#dff5df,stroke:#3c8c3c,color:#111;
+    classDef repo fill:#7a7a7a,stroke:#4d4d4d,color:#111;
+    classDef path fill:#b3b3b3,stroke:#4d4d4d,color:#111;
+    classDef spacer fill:transparent,stroke:transparent,color:transparent;
+
+    class A,B,C,D sourcegroup;
+    class A1,A2,A3,B1,B2,B3,C1,C2,C3,D1,D2,D3 source;
+    class E,F,H,G framework;
+    class I,J results;
+    class BS,DS spacer;
+    class E1,F1,Z,Y path;
+    linkStyle 10,11,12,13 stroke:#333333,stroke-width:2px,stroke-dasharray:6 4;
+```
+
+## Repository structure
+
+```text
+cssi_evaluation/
+├── src/cssi_evaluation/         # Core framework code
+│   ├── models/                  # Model-specific adapters
+│   ├── external_data_access/    # Observation and reference-data access helpers
+│   ├── utils/                   # Shared evaluation utilities
+│   ├── variables/               # Variable-specific diagnostics
+│   └── example_workflow.ipynb   # Package-level example workflow
+├── examples/                    # Example notebooks and supporting assets
+├── docs/                        # Project documentation and notes
+├── tests/                       # Package tests
+├── pyproject.toml               # Package metadata and dependencies
+└── README.md
+```
+
+## What is and is not part of the workflow
+
+The framework logic is the code under [`src/cssi_evaluation/`](src/cssi_evaluation).
+
+The following directories are important, but they are not part of the workflow implementation itself:
+
+- [`docs/`](docs) for narrative documentation and project references
+- [`examples/`](examples) for demonstration notebooks and usage examples
+- [`tests/`](tests) for validation and regression testing
+
+## Outlook
+
+The framework is intended to grow by adding:
+
+- new model adapters
+- new observation and reference-data pathways
+- new variable-specific diagnostics
+- clearer workflows for users bringing their own model outputs, including both physics-based and ML-based models
+
+The long-term aim is to reduce the barrier to reproducible hydrologic model evaluation while keeping the code structure aligned with the scientific workflow.

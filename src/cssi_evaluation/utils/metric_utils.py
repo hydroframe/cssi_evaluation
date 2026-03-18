@@ -1,5 +1,5 @@
 """
-Evaluation Metrics 
+Evaluation Metrics Utilities
 
 - Root Mean Square Error (RMSE)
 - Mean Square Error (MSE)
@@ -13,8 +13,23 @@ Evaluation Metrics
 - Percent Bias
 - Absolute Relative Bias
 - Total Difference
-- Condon cateogory (low/high bias, poor/good shape)
+- Condon category (low/high bias, poor/good shape)
 """
+### LOCATION OF ORIGINAL FUNCTIONS
+# evaluation_metrics.RMSE()
+# evaluation_metrics.MSE()
+# evaluation_metrics.pearson_R()
+# evaluation_metrics.spearman_rank()
+# evaluation_metrics.NSE()
+# evaluation_metrics.KGE()
+# evaluation_metrics.R_squared()
+# evaluation_metrics.bias_from_R()
+# evaluation_metrics.bias()
+# evaluation_metrics.percent_bias()
+# evaluation_metrics.absolute_relative_bias()
+# evaluation_metrics.total_difference()
+# evaluation_metrics.condon()
+
 
 # pylint: disable=C0103
 
@@ -22,6 +37,22 @@ from scipy import stats
 from sklearn.metrics import mean_squared_error as mse
 from sklearn.metrics import r2_score, root_mean_squared_error
 import numpy as np
+
+METRICS_DICT = {
+    "rmse": RMSE,
+    "mse": MSE,
+    "pearson_r": pearson_R,
+    "spearman_rho": spearman_rank,
+    "nse": NSE,
+    "kge": KGE,
+    "r_squared": R_squared,
+    "bias_from_r": bias_from_R,
+    "bias": bias,
+    "percent_bias": percent_bias,
+    "abs_rel_bias": absolute_relative_bias,
+    "total_difference": total_difference,
+    "condon": condon,
+}
 
 
 def RMSE(x, y):
@@ -206,7 +237,7 @@ def bias_from_R(x, y):
 
 def bias(x, y):
     """
-    Calculate bias.
+    Calculate relative bias.
 
     Parameters
     ----------
@@ -224,7 +255,7 @@ def bias(x, y):
 
 def percent_bias(x, y):
     """
-    Calculate percent bias.
+    Calculate relativepercent bias.
 
     Parameters
     ----------
