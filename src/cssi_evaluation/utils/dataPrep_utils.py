@@ -7,7 +7,7 @@ including time alignment, filtering, and dataframe restructuring.
 
 ### LOCATION OF ORIGINAL FUNCTIONS
 # snow_utils.compute_water_year()
-# utils.get_water_year()  duplicate 
+# utils.get_water_year()  duplicate
 # utils.remove_sparse_columns()
 # nwm_utils.combine()
 # utils.convert_dates_to_timesteps()
@@ -17,10 +17,10 @@ including time alignment, filtering, and dataframe restructuring.
 import os
 import datetime
 import pandas as pd
-import numpy as np
 from typing import Any, Union
 import pyproj
 import pytz
+
 
 # From CUAHSI's utils/snow_utils.py
 def compute_water_year(
@@ -52,62 +52,63 @@ def compute_water_year(
 
     return water_year.to_series()
 
+
 # From CUAHSI's nwm_utils.py -- MIGHT NOT NEED THIS, BUT KEEPING IT FOR USE IN CURRENT NOTEBOOKS
 def combine(obs_files, mod_files, StartDate, EndDate):
 
     # Create a dictionary to store dataframes
     dataframes = {}
-    
+
     # Read SNOTEL files
     for file in obs_files:
-        location = os.path.basename(file).split('_')[1]  # Extract location from filename
-        network = os.path.basename(file).split('_')[-1].split('.')[0] # Extract network from filename
+        location = os.path.basename(file).split("_")[
+            1
+        ]  # Extract location from filename
+        network = (
+            os.path.basename(file).split("_")[-1].split(".")[0]
+        )  # Extract network from filename
         df = pd.read_csv(file)
-        df['Date'] = pd.to_datetime(df['Date']).dt.date  # .dt.date is required because times are not excatly the same between SNOTEL and NWM
-        dataframes[f'{network}_{location}'] = df.set_index('Date')
-    
+        df["Date"] = pd.to_datetime(
+            df["Date"]
+        ).dt.date  # .dt.date is required because times are not excatly the same between SNOTEL and NWM
+        dataframes[f"{network}_{location}"] = df.set_index("Date")
+
     # Read NWM files
     for file in mod_files:
-        location = os.path.basename(file).split('_')[1]  # Extract location from filename
+        location = os.path.basename(file).split("_")[
+            1
+        ]  # Extract location from filename
         df = pd.read_csv(file)
-        df['Date_Local'] = pd.to_datetime(df['Date_Local']).dt.date  # .dt.date is required because times are not excatly the same between SNOTEL and NWM
-        dataframes[f'NWM_{location}'] = df.set_index('Date_Local')
-    
+        df["Date_Local"] = pd.to_datetime(
+            df["Date_Local"]
+        ).dt.date  # .dt.date is required because times are not excatly the same between SNOTEL and NWM
+        dataframes[f"NWM_{location}"] = df.set_index("Date_Local")
+
     # Merge dataframes on Date
-    combined_df = pd.DataFrame(index=pd.date_range(start=StartDate, end=EndDate))  
+    combined_df = pd.DataFrame(index=pd.date_range(start=StartDate, end=EndDate))
     for key, df in dataframes.items():
-        if 'SNTL' in key:
-            combined_df[f'{key}_swe_m'] = df['Snow Water Equivalent (m) Start of Day Values']
-        if 'CCSS' in key:
-            combined_df[f'{key}_swe_m'] = df['Snow Water Equivalent (m) Start of Day Values']
-        elif 'NWM' in key:
-            combined_df[f'{key}_swe_m'] = df['NWM_SWE_meters']
+        if "SNTL" in key:
+            combined_df[f"{key}_swe_m"] = df[
+                "Snow Water Equivalent (m) Start of Day Values"
+            ]
+        if "CCSS" in key:
+            combined_df[f"{key}_swe_m"] = df[
+                "Snow Water Equivalent (m) Start of Day Values"
+            ]
+        elif "NWM" in key:
+            combined_df[f"{key}_swe_m"] = df["NWM_SWE_meters"]
 
     return combined_df
 
 
-
-### BELOW ARE UTILS FROM AMY'S FILES 
-
-"""
-Model evaluation utility functions.
-
-Note that these functions are not intended to be used stand-alone; they act as sub-processes
-within the model_evaluation.evaluate method.
-"""
-
-import datetime
-import numpy as np
-from hf_hydrodata import get_gridded_data
-
-HYDRODATA = "/hydrodata"
-
+### BELOW ARE UTILS FROM AMY'S FILES
 def get_water_year(date):
     """Return the water year for a given date."""
     if date.month in range(1, 10):
         return date.year
     else:
         return date.year + 1
+
 
 def remove_sparse_columns(df, min_obs_pct=None, min_obs_count=None):
     """
@@ -186,14 +187,16 @@ def convert_dates_to_timesteps(
 
     return (ts_start, ts_end)
 
+
 # from Irene's nwm_utils.py
+
 
 def convert_latlon_to_yx(lat, lon, input_crs, output_crs):
     """
     This function takes latitude and longitude values along with
-    input and output coordinate reference system (CRS) and 
-    uses Python's pyproj package to convert the provided values 
-    (as single float values, not arrays) to the corresponding y and x 
+    input and output coordinate reference system (CRS) and
+    uses Python's pyproj package to convert the provided values
+    (as single float values, not arrays) to the corresponding y and x
     coordinates in the output CRS.
 
     Parameters
@@ -212,14 +215,15 @@ def convert_latlon_to_yx(lat, lon, input_crs, output_crs):
     tuple
         (y, x) coordinates in the output CRS.
     """
-    
+
     # Create a transformer
     transformer = pyproj.Transformer.from_crs(input_crs, output_crs, always_xy=True)
 
     # Perform the transformation
     x, y = transformer.transform(lon, lat)
 
-    return y, x 
+    return y, x
+
 
 def convert_utc_to_local(state, df):
     """
@@ -246,36 +250,110 @@ def convert_utc_to_local(state, df):
     """
 
     state_abbreviations = {
-    "Alabama": "AL", "Alaska": "AK", "Arizona": "AZ", "Arkansas": "AR",
-    "California": "CA", "Colorado": "CO", "Connecticut": "CT", "Delaware": "DE",
-    "Florida": "FL", "Georgia": "GA", "Hawaii": "HI", "Idaho": "ID",
-    "Illinois": "IL", "Indiana": "IN", "Iowa": "IA", "Kansas": "KS",
-    "Kentucky": "KY", "Louisiana": "LA", "Maine": "ME", "Maryland": "MD",
-    "Massachusetts": "MA", "Michigan": "MI", "Minnesota": "MN", "Mississippi": "MS",
-    "Missouri": "MO", "Montana": "MT", "Nebraska": "NE", "Nevada": "NV",
-    "New Hampshire": "NH", "New Jersey": "NJ", "New Mexico": "NM", "New York": "NY",
-    "North Carolina": "NC", "North Dakota": "ND", "Ohio": "OH", "Oklahoma": "OK",
-    "Oregon": "OR", "Pennsylvania": "PA", "Rhode Island": "RI",
-    "South Carolina": "SC", "South Dakota": "SD", "Tennessee": "TN",
-    "Texas": "TX", "Utah": "UT", "Vermont": "VT", "Virginia": "VA",
-    "Washington": "WA", "West Virginia": "WV", "Wisconsin": "WI", "Wyoming": "WY"
+        "Alabama": "AL",
+        "Alaska": "AK",
+        "Arizona": "AZ",
+        "Arkansas": "AR",
+        "California": "CA",
+        "Colorado": "CO",
+        "Connecticut": "CT",
+        "Delaware": "DE",
+        "Florida": "FL",
+        "Georgia": "GA",
+        "Hawaii": "HI",
+        "Idaho": "ID",
+        "Illinois": "IL",
+        "Indiana": "IN",
+        "Iowa": "IA",
+        "Kansas": "KS",
+        "Kentucky": "KY",
+        "Louisiana": "LA",
+        "Maine": "ME",
+        "Maryland": "MD",
+        "Massachusetts": "MA",
+        "Michigan": "MI",
+        "Minnesota": "MN",
+        "Mississippi": "MS",
+        "Missouri": "MO",
+        "Montana": "MT",
+        "Nebraska": "NE",
+        "Nevada": "NV",
+        "New Hampshire": "NH",
+        "New Jersey": "NJ",
+        "New Mexico": "NM",
+        "New York": "NY",
+        "North Carolina": "NC",
+        "North Dakota": "ND",
+        "Ohio": "OH",
+        "Oklahoma": "OK",
+        "Oregon": "OR",
+        "Pennsylvania": "PA",
+        "Rhode Island": "RI",
+        "South Carolina": "SC",
+        "South Dakota": "SD",
+        "Tennessee": "TN",
+        "Texas": "TX",
+        "Utah": "UT",
+        "Vermont": "VT",
+        "Virginia": "VA",
+        "Washington": "WA",
+        "West Virginia": "WV",
+        "Wisconsin": "WI",
+        "Wyoming": "WY",
     }
 
     state_timezones = {
-    'AL': 'US/Central', 'AK': 'US/Alaska', 'AZ': 'US/Mountain', 'AR': 'US/Central',
-    'CA': 'US/Pacific', 'CO': 'US/Mountain', 'CT': 'US/Eastern', 'DE': 'US/Eastern',
-    'FL': 'US/Eastern', 'GA': 'US/Eastern', 'HI': 'US/Hawaii', 'ID': 'US/Mountain',
-    'IL': 'US/Central', 'IN': 'US/Eastern', 'IA': 'US/Central', 'KS': 'US/Central',
-    'KY': 'US/Eastern', 'LA': 'US/Central', 'ME': 'US/Eastern', 'MD': 'US/Eastern',
-    'MA': 'US/Eastern', 'MI': 'US/Eastern', 'MN': 'US/Central', 'MS': 'US/Central',
-    'MO': 'US/Central', 'MT': 'US/Mountain', 'NE': 'US/Central', 'NV': 'US/Pacific',
-    'NH': 'US/Eastern', 'NJ': 'US/Eastern', 'NM': 'US/Mountain', 'NY': 'US/Eastern',
-    'NC': 'US/Eastern', 'ND': 'US/Central', 'OH': 'US/Eastern', 'OK': 'US/Central',
-    'OR': 'US/Pacific', 'PA': 'US/Eastern', 'RI': 'US/Eastern', 'SC': 'US/Eastern',
-    'SD': 'US/Central', 'TN': 'US/Central', 'TX': 'US/Central', 'UT': 'US/Mountain',
-    'VT': 'US/Eastern', 'VA': 'US/Eastern', 'WA': 'US/Pacific', 'WV': 'US/Eastern',
-    'WI': 'US/Central', 'WY': 'US/Mountain'
-    }    
+        "AL": "US/Central",
+        "AK": "US/Alaska",
+        "AZ": "US/Mountain",
+        "AR": "US/Central",
+        "CA": "US/Pacific",
+        "CO": "US/Mountain",
+        "CT": "US/Eastern",
+        "DE": "US/Eastern",
+        "FL": "US/Eastern",
+        "GA": "US/Eastern",
+        "HI": "US/Hawaii",
+        "ID": "US/Mountain",
+        "IL": "US/Central",
+        "IN": "US/Eastern",
+        "IA": "US/Central",
+        "KS": "US/Central",
+        "KY": "US/Eastern",
+        "LA": "US/Central",
+        "ME": "US/Eastern",
+        "MD": "US/Eastern",
+        "MA": "US/Eastern",
+        "MI": "US/Eastern",
+        "MN": "US/Central",
+        "MS": "US/Central",
+        "MO": "US/Central",
+        "MT": "US/Mountain",
+        "NE": "US/Central",
+        "NV": "US/Pacific",
+        "NH": "US/Eastern",
+        "NJ": "US/Eastern",
+        "NM": "US/Mountain",
+        "NY": "US/Eastern",
+        "NC": "US/Eastern",
+        "ND": "US/Central",
+        "OH": "US/Eastern",
+        "OK": "US/Central",
+        "OR": "US/Pacific",
+        "PA": "US/Eastern",
+        "RI": "US/Eastern",
+        "SC": "US/Eastern",
+        "SD": "US/Central",
+        "TN": "US/Central",
+        "TX": "US/Central",
+        "UT": "US/Mountain",
+        "VT": "US/Eastern",
+        "VA": "US/Eastern",
+        "WA": "US/Pacific",
+        "WV": "US/Eastern",
+        "WI": "US/Central",
+        "WY": "US/Mountain",
+    }
 
     if len(state) == 2:
         state_abbr = state
@@ -283,23 +361,25 @@ def convert_utc_to_local(state, df):
         state_abbr = state_abbreviations.get(state, "State not found")
 
     # Extract the state abbreviation from the filename
-    # state_abbr = os.path.basename(filename).split('_')[2]  
+    # state_abbr = os.path.basename(filename).split('_')[2]
     timezone = state_timezones.get(state_abbr)
 
     if timezone:
         # Convert the 'Date' column to datetime
-        df['Date'] = pd.to_datetime(df['Date'], utc=True)
-        
+        df["Date"] = pd.to_datetime(df["Date"], utc=True)
+
         # Convert to local time zone
         local_tz = pytz.timezone(timezone)
-        df['Date_Local'] = df['Date'].dt.tz_convert(local_tz)
+        df["Date_Local"] = df["Date"].dt.tz_convert(local_tz)
 
-         # Save the timezone-aware Date_Local column
-        df['Date_Local'] = df['Date_Local'].astype(str)
-        df['Date_Local'] = df['Date_Local'].apply(lambda x: datetime.datetime.strptime(x, '%Y-%m-%d %H:%M:%S%z'))
-        df['Date_Local'] = df['Date_Local'].apply(lambda x: x.replace(tzinfo=None))
+        # Save the timezone-aware Date_Local column
+        df["Date_Local"] = df["Date_Local"].astype(str)
+        df["Date_Local"] = df["Date_Local"].apply(
+            lambda x: datetime.datetime.strptime(x, "%Y-%m-%d %H:%M:%S%z")
+        )
+        df["Date_Local"] = df["Date_Local"].apply(lambda x: x.replace(tzinfo=None))
 
     else:
         print(f"Timezone for state abbreviation {state_abbr} not found.")
-        
+
     return df

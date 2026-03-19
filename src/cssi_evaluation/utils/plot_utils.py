@@ -62,12 +62,6 @@ CONDON_LABELS = [
 ]
 
 
-STATES_SHP = "/hydrodata/national_mapping/NaturalEarth/US_states.shp"
-
-font_prop = fm.FontProperties(fname="Roboto-Regular.ttf", size=7.9)
-legend_tick_prop = fm.FontProperties(fname="Roboto-Regular.ttf", size=6.5)
-
-
 def plot_obs_locations(obs_metadata_df, mask, file_path):
     """
     Plot domain mask with locations of sites within the domain.

@@ -9,13 +9,11 @@
 # model_evaluation.explore_available_observations()
 # model_evaluation.get_observations()
 
-import datetime
 import warnings
 import pandas as pd
 import hf_hydrodata as hf
-from cssi_evaluation.utils.amys_files_just_for_reorg import utils as reorg_utils
-
-DATE_SUFFIX = datetime.date.today().strftime("%Y%m%d")
+from cssi_evaluation.utils.dataPrep_utils import remove_sparse_columns
+from cssi_evaluation.models import parflow_utils
 
 warnings.simplefilter(action="ignore", category=FutureWarning)
 
@@ -51,7 +49,7 @@ def explore_available_observations(mask, ij_bounds, grid, **kwargs):
     """
     options = kwargs
 
-    reorg_utils.check_mask_shape(mask, ij_bounds)
+    parflow_utils.check_mask_shape(mask, ij_bounds)
 
     # Query site metadata for the CONUS grid bounds
     options["grid"] = grid
@@ -66,13 +64,13 @@ def explore_available_observations(mask, ij_bounds, grid, **kwargs):
     # Shift i/j coordinates so that they index starting from the regional
     # bounding box origin instead of the overall CONUS grid origin
     data_available_df["domain_i"] = data_available_df.apply(
-        lambda x: reorg_utils.get_domain_indices(
+        lambda x: parflow_utils.get_domain_indices(
             ij_bounds, (x[f"{grid}_i"], x[f"{grid}_j"])
         )[0],
         axis=1,
     )
     data_available_df["domain_j"] = data_available_df.apply(
-        lambda x: reorg_utils.get_domain_indices(
+        lambda x: parflow_utils.get_domain_indices(
             ij_bounds, (x[f"{grid}_i"], x[f"{grid}_j"])
         )[1],
         axis=1,
@@ -171,7 +169,7 @@ def get_observations(  # *This function is specific to PF-CONUS, but could be ad
     # Setting an ij_bounds of None means that the user wants to use the full CONUS grid, so we don't need
     # to check the mask shape or adjust the ij_bounds.
     if ij_bounds is not None:
-        reorg_utils.check_mask_shape(mask, ij_bounds)
+        parflow_utils.check_mask_shape(mask, ij_bounds)
 
         # Update bounds so they use inclusive upper bounds for hf_hydrodata. Otherwise, one index too many will be requested.
         ij_bounds = [
@@ -209,17 +207,20 @@ def get_observations(  # *This function is specific to PF-CONUS, but could be ad
         grid_bounds=ij_bounds,
     )
 
+    # Filter out observations that don't have {grid}_i and {grid}_j values
+    metadata_df = metadata_df.dropna(subset=[f"{grid}_i", f"{grid}_j"])
+
     # Shift i/j coordinates so that they index starting from the regional
     # bounding box origin instead of the overall CONUS grid origin
     if ij_bounds is not None:
         metadata_df["domain_i"] = metadata_df.apply(
-            lambda x: reorg_utils.get_domain_indices(
+            lambda x: parflow_utils.get_domain_indices(
                 ij_bounds, (x[f"{grid}_i"], x[f"{grid}_j"])
             )[0],
             axis=1,
         )
         metadata_df["domain_j"] = metadata_df.apply(
-            lambda x: reorg_utils.get_domain_indices(
+            lambda x: parflow_utils.get_domain_indices(
                 ij_bounds, (x[f"{grid}_i"], x[f"{grid}_j"])
             )[1],
             axis=1,
@@ -261,7 +262,7 @@ def get_observations(  # *This function is specific to PF-CONUS, but could be ad
 
     # Only proceed if observation time series has enough non-NaN values
     if (missing_pct_threshold) or (missing_count_threshold):
-        obs_data_df = reorg_utils.remove_sparse_columns(
+        obs_data_df = remove_sparse_columns(
             obs_data_df,
             min_obs_pct=missing_pct_threshold,
             min_obs_count=missing_count_threshold,
