@@ -142,11 +142,10 @@ flowchart LR
 ```text
 cssi_evaluation/
 ├── src/cssi_evaluation/         # Core framework code
-│   ├── models/                  # Model-specific adapters
 │   ├── external_data_access/    # Observation and reference-data access helpers
+│   ├── models/                  # Model-specific adapters
 │   ├── utils/                   # Shared evaluation utilities
-│   ├── variables/               # Variable-specific diagnostics
-│   └── example_workflow.ipynb   # Package-level example workflow
+│   ├── variables/               # Variable-specific example workflow
 ├── examples/                    # Example notebooks and supporting assets
 ├── docs/                        # Project documentation and notes
 ├── tests/                       # Package tests
