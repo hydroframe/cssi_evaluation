@@ -1,8 +1,8 @@
-# These are functions that need consideration for where they should be reorganized within the codebase. 
+# These are functions that need consideration for where they should be reorganized within the codebase.
 
 #### From Amy's `model_evaluation.py` script, but have been moved here since they are more specific to the ParFlow model outputs and workflow.
-# They *should* belong in the evaluation_utils.py file since they are focused on handling observations data, 
-# but they are currently implemented in a way that is specific to the PF-CONUS outputs and workflow. 
+# They *should* belong in the evaluation_utils.py file since they are focused on handling observations data,
+# but they are currently implemented in a way that is specific to the PF-CONUS outputs and workflow.
 # They could be adapted for other models/datasets, but the current implementation is specific to PF-CONUS outputs.
 
 ### LOCATION OF ORIGINAL FUNCTION DEFINITIONS
@@ -13,34 +13,12 @@ import datetime
 import warnings
 import pandas as pd
 import hf_hydrodata as hf
-import numpy as np
-import parflow as pf
-from parflow import Run
-from parflow.tools.io import read_pfb
-import parflow.tools.hydrology as hydro
-
-import cssi_evaluation.utils as utils
-import cssi_evaluation.evaluation_metrics as evaluation_metrics
-
-METRICS_DICT = {
-    "r2": evaluation_metrics.R_squared,
-    "spearman_rho": evaluation_metrics.spearman_rank,
-    "mse": evaluation_metrics.MSE,
-    "rmse": evaluation_metrics.RMSE,
-    "bias": evaluation_metrics.bias,
-    "percent_bias": evaluation_metrics.percent_bias,
-    "abs_rel_bias": evaluation_metrics.absolute_relative_bias,
-    "total_difference": evaluation_metrics.total_difference,
-    "pearson_r": evaluation_metrics.pearson_R,
-    "nse": evaluation_metrics.NSE,
-    "kge": evaluation_metrics.KGE,
-    "bias_from_r": evaluation_metrics.bias_from_R,
-    "condon": evaluation_metrics.condon,
-}
+from cssi_evaluation.utils.amys_files_just_for_reorg import utils as reorg_utils
 
 DATE_SUFFIX = datetime.date.today().strftime("%Y%m%d")
 
 warnings.simplefilter(action="ignore", category=FutureWarning)
+
 
 # *This function is specific to PF-CONUS, but could be adapted for other models/datasets
 def explore_available_observations(mask, ij_bounds, grid, **kwargs):
@@ -73,7 +51,7 @@ def explore_available_observations(mask, ij_bounds, grid, **kwargs):
     """
     options = kwargs
 
-    utils.check_mask_shape(mask, ij_bounds)
+    reorg_utils.check_mask_shape(mask, ij_bounds)
 
     # Query site metadata for the CONUS grid bounds
     options["grid"] = grid
@@ -88,15 +66,15 @@ def explore_available_observations(mask, ij_bounds, grid, **kwargs):
     # Shift i/j coordinates so that they index starting from the regional
     # bounding box origin instead of the overall CONUS grid origin
     data_available_df["domain_i"] = data_available_df.apply(
-        lambda x: utils.get_domain_indices(ij_bounds, (x[f"{grid}_i"], x[f"{grid}_j"]))[
-            0
-        ],
+        lambda x: reorg_utils.get_domain_indices(
+            ij_bounds, (x[f"{grid}_i"], x[f"{grid}_j"])
+        )[0],
         axis=1,
     )
     data_available_df["domain_j"] = data_available_df.apply(
-        lambda x: utils.get_domain_indices(ij_bounds, (x[f"{grid}_i"], x[f"{grid}_j"]))[
-            1
-        ],
+        lambda x: reorg_utils.get_domain_indices(
+            ij_bounds, (x[f"{grid}_i"], x[f"{grid}_j"])
+        )[1],
         axis=1,
     )
 
@@ -109,7 +87,7 @@ def explore_available_observations(mask, ij_bounds, grid, **kwargs):
     return data_available_df
 
 
-def get_observations( # *This function is specific to PF-CONUS, but could be adapted for other models/datasets
+def get_observations(  # *This function is specific to PF-CONUS, but could be adapted for other models/datasets
     mask,
     ij_bounds,
     grid,
@@ -193,7 +171,7 @@ def get_observations( # *This function is specific to PF-CONUS, but could be ada
     # Setting an ij_bounds of None means that the user wants to use the full CONUS grid, so we don't need
     # to check the mask shape or adjust the ij_bounds.
     if ij_bounds is not None:
-        utils.check_mask_shape(mask, ij_bounds)
+        reorg_utils.check_mask_shape(mask, ij_bounds)
 
         # Update bounds so they use inclusive upper bounds for hf_hydrodata. Otherwise, one index too many will be requested.
         ij_bounds = [
@@ -235,13 +213,13 @@ def get_observations( # *This function is specific to PF-CONUS, but could be ada
     # bounding box origin instead of the overall CONUS grid origin
     if ij_bounds is not None:
         metadata_df["domain_i"] = metadata_df.apply(
-            lambda x: utils.get_domain_indices(
+            lambda x: reorg_utils.get_domain_indices(
                 ij_bounds, (x[f"{grid}_i"], x[f"{grid}_j"])
             )[0],
             axis=1,
         )
         metadata_df["domain_j"] = metadata_df.apply(
-            lambda x: utils.get_domain_indices(
+            lambda x: reorg_utils.get_domain_indices(
                 ij_bounds, (x[f"{grid}_i"], x[f"{grid}_j"])
             )[1],
             axis=1,
@@ -283,7 +261,7 @@ def get_observations( # *This function is specific to PF-CONUS, but could be ada
 
     # Only proceed if observation time series has enough non-NaN values
     if (missing_pct_threshold) or (missing_count_threshold):
-        obs_data_df = utils.remove_sparse_columns(
+        obs_data_df = reorg_utils.remove_sparse_columns(
             obs_data_df,
             min_obs_pct=missing_pct_threshold,
             min_obs_count=missing_count_threshold,
