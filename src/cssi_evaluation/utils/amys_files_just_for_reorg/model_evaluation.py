@@ -12,8 +12,10 @@ from parflow import Run
 from parflow.tools.io import read_pfb
 import parflow.tools.hydrology as hydro
 
-import cssi_evaluation.utils as utils
-import cssi_evaluation.evaluation_metrics as evaluation_metrics
+from cssi_evaluation.utils.amys_files_just_for_reorg import (
+    MOVED_evaluation_metrics as evaluation_metrics,
+    utils as utils,
+)
 
 METRICS_DICT = {
     "r2": evaluation_metrics.R_squared,
