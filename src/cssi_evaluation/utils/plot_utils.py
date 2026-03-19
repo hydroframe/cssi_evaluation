@@ -16,19 +16,11 @@ time series plots, scatter plots, spatial maps, and evaluation diagrams.
 # nwm_utils.plot_grid_vector_data()
 # plots.plot_metric_map()
 # plots.plot_obs_locations()
-
-
-# From Amy's plots.py
-
-"""Functions to support plotting within the model evaluation module."""
-
 import os
-import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 from matplotlib.lines import Line2D
-import matplotlib.font_manager as fm
 import xarray as xr
 import geopandas as gpd
 import holoviews as hv
@@ -535,9 +527,6 @@ def plot_sites_within_domain(gdf_sites, domain_gdf, zoom_start=10):
     Returns:
     - folium.Map object ready to display.
     """
-    import folium
-    import geopandas as gpd
-
     # Ensure CRS compatibility
     if gdf_sites.crs != domain_gdf.crs:
         gdf_sites = gdf_sites.to_crs(domain_gdf.crs)
