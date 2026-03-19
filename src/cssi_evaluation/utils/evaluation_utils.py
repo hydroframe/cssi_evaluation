@@ -1,7 +1,7 @@
 """
 Evaluation workflow utilities.
 
-Helper functions that orchestrate model–observation comparisons,
+Helper functions that orchestrate model-observation comparisons,
 metric calculation, and summary statistics.
 """
 
@@ -41,11 +41,11 @@ def initialize_metrics_df(obs_metadata_df, metrics_list):
     Parameters
     ----------
     obs_metadata_df: DataFrame
-        Pandas DataFrame consisting of at least site_id, x, and y CONUS grid mapping
+        Pandas DataFrame consisting of at least site_id, site_name, latitude, longitude
         values.
     metrics: list
         List of string names of metrics to use for evaluation. Must be present in METRICS_DICT
-        dictionary in the model_evaluation.py module.
+        dictionary in this module.
 
     Returns
     -------
@@ -53,9 +53,16 @@ def initialize_metrics_df(obs_metadata_df, metrics_list):
         DataFrame containing site ID, x and y CONUS grid mapping values, along with empty columns
         for each of the evaluation metrics defined in metrics.
     """
-    metrics_df = obs_metadata_df[
-        ["site_id", "site_name", "latitude", "longitude", "domain_i", "domain_j"]
-    ].copy()
+    if ("domain_i" not in obs_metadata_df.columns) or (
+        "domain_j" not in obs_metadata_df.columns
+    ):
+        metrics_df = obs_metadata_df[
+            ["site_id", "site_name", "latitude", "longitude"]
+        ].copy()
+    else:
+        metrics_df = obs_metadata_df[
+            ["site_id", "site_name", "latitude", "longitude", "domain_i", "domain_j"]
+        ].copy()
     for m in metrics_list:
         if m == "condon":
             metrics_df[f"{m}"] = ""
@@ -67,14 +74,14 @@ def initialize_metrics_df(obs_metadata_df, metrics_list):
 
 def calculate_metrics(
     obs_data_df,
-    parflow_data_df,
+    model_data_df,
     obs_metadata_df,
     metrics_list=None,
     write_csv=False,
     csv_path=None,
 ):
     """
-    Calculate comparison metrics between observations and matching ParFlow output.
+    Calculate comparison metrics between observations and matching model outputs.
 
     Parameters
     ----------
@@ -82,14 +89,14 @@ def calculate_metrics(
         DataFrame containing the time series observartions for each filtered site for the
         requested time range. One column per site and one row per timestep. This is
         output from the function `get_observations`.
-    parflow_data_df : DataFrame
+    model_data_df : DataFrame
         DataFrame containing the time series observartions for each matched-site-grid-cell
         for the requested time range. The columns represent each site location requested
-        and the rows contain the time series from the ParFlow grid cell that contains
-        that site. This is output from the function `get_parflow_output`.
+        and the rows contain the time series from the model region that contains
+        that site.
     obs_metadata_df : DataFrame
         DataFrame with one row per filtered site, containing location and site attribute
-        information. This is output from the function `get_observations`.
+        information. It should include at least the columns 'site_id', 'site_name', 'latitude', and 'longitude'.
     metrics_list : list; default=None
         List of metrics to calculate. Defaults to calculating all metrics if none explicitly
         provided.
@@ -117,25 +124,25 @@ def calculate_metrics(
         site_id = obs_data_df.columns[(i + 1)]
 
         obs_data = obs_data_df.loc[:, [site_id]].to_numpy()
-        pf_data = parflow_data_df.loc[:, [site_id]].to_numpy()
+        model_data = model_data_df.loc[:, [site_id]].to_numpy()
 
         # Trim arrays to remove matching indices where NaN observations are
         nan_mask = ~np.isnan(obs_data)
         obs_data = obs_data[nan_mask]
-        pf_data = pf_data[nan_mask]
+        model_data = model_data[nan_mask]
 
         try:
-            assert len(obs_data) == len(pf_data)
+            assert len(obs_data) == len(model_data)
         except Exception as exc:
             raise ValueError(
                 f"""The number of observation timesteps ({len(obs_data)}) does not 
-                match the number of ParFlow timesteps ({len(pf_data)})."""
+                match the number of model result timesteps ({len(model_data)})."""
             ) from exc
 
         # Calculate metrics
         for m in metrics_list:
             # too few observations to compare
-            if len(pf_data) < 2:
+            if len(model_data) < 2:
                 metrics_df.loc[metrics_df["site_id"] == site_id, f"{m}"] = np.nan
 
             elif m == "condon":
@@ -161,7 +168,7 @@ def calculate_metrics(
             else:
                 metrics_df.loc[metrics_df["site_id"] == site_id, f"{m}"] = METRICS_DICT[
                     m
-                ](obs_data, pf_data)
+                ](obs_data, model_data)
 
     # Additionally write to disk if requested
     if write_csv is True:
