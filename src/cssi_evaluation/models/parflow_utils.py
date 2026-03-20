@@ -4,19 +4,8 @@ ParFlow model utilities.
 Functions for preprocessing PF outputs, handling coordinate/grid conversions,
 and preparing datasets for comparison with observations.
 """
-"""
-Main method for model evaluation.
-These functions are from Amy's `model_evaluation.py` script, but have been 
-moved here since they are more specific to the ParFlow model outputs and workflow. 
-They could be adapted for other models/datasets, but the current implementation is specific to 
-PF-CONUS outputs. 
-In particular the `explore_available_observations` and `get_observations` functions could be adapted 
-for other models/datasets, and moved to the more general `evaluation_utils.py` since they are focused on 
-handling observations data. 
-"""
 
 # IMPORTS NEEDED FOR FUNCTION DEFINITIONS***
-# From model_evaluation.py, but some may not be needed and need to clean this up.
 import datetime
 import warnings
 import pandas as pd
@@ -27,28 +16,13 @@ from parflow import Run
 from parflow.tools.io import read_pfb
 import parflow.tools.hydrology as hydro
 
-import cssi_evaluation.utils as utils
-import cssi_evaluation.evaluation_metrics as evaluation_metrics
-
-METRICS_DICT = {
-    "r2": evaluation_metrics.R_squared,
-    "spearman_rho": evaluation_metrics.spearman_rank,
-    "mse": evaluation_metrics.MSE,
-    "rmse": evaluation_metrics.RMSE,
-    "bias": evaluation_metrics.bias,
-    "percent_bias": evaluation_metrics.percent_bias,
-    "abs_rel_bias": evaluation_metrics.absolute_relative_bias,
-    "total_difference": evaluation_metrics.total_difference,
-    "pearson_r": evaluation_metrics.pearson_R,
-    "nse": evaluation_metrics.NSE,
-    "kge": evaluation_metrics.KGE,
-    "bias_from_r": evaluation_metrics.bias_from_R,
-    "condon": evaluation_metrics.condon,
-}
-
-DATE_SUFFIX = datetime.date.today().strftime("%Y%m%d")
+from cssi_evaluation.utils.dataPrep_utils import (
+    get_water_year,
+    convert_dates_to_timesteps,
+)
 
 warnings.simplefilter(action="ignore", category=FutureWarning)
+
 
 def get_parflow_output(
     obs_metadata_df,
@@ -100,7 +74,7 @@ def get_parflow_output(
         that site.
     """
 
-    water_year = utils.get_water_year(date_start)
+    water_year = get_water_year(date_start)
 
     if temporal_resolution == "hourly":
         timesteps = np.arange(
@@ -118,7 +92,7 @@ def get_parflow_output(
         raise ValueError("temporal_resolution must be either 'hourly' or 'daily'.")
     nt = len(timesteps)
 
-    ts_start, ts_end = utils.convert_dates_to_timesteps(
+    ts_start, ts_end = convert_dates_to_timesteps(
         date_start, date_end, temporal_resolution, initial_timestep
     )
 
@@ -229,3 +203,67 @@ def get_parflow_output(
         pf_matched_obs_df.to_csv(csv_path, index=False)
 
     return pf_matched_obs_df
+
+
+def get_conus_mask(grid):
+    """
+    Get the CONUS-wide mask for a given grid ("conus1" or "conus2").
+    """
+    options = {"dataset": f"{grid}_domain", "variable": "mask"}
+    conus_mask = hf.get_gridded_data(options).squeeze()
+
+    return conus_mask.astype(int)
+
+
+def check_mask_shape(mask, ij_bounds):
+    """
+    Function to check size of mask matches with ij bounds provided.
+
+    Parameters
+    ----------
+    mask : array
+        Array representing a domain mask.
+    ij_bounds : tuple
+        Tuple of (i_min, j_min, i_max, j_max) of where the mask is located within the
+        conus domain.
+
+    Returns
+    -------
+    None
+        Raises ValueError if size of mask doesn't match size of ij bounds.
+    """
+    j_bound_length = ij_bounds[3] - ij_bounds[1]
+    i_bound_length = ij_bounds[2] - ij_bounds[0]
+
+    try:
+        assert i_bound_length == mask.shape[1]
+        assert j_bound_length == mask.shape[0]
+    except Exception as exc:
+        raise ValueError(
+            f"The mask shape is {mask.shape} but the ij_bounds is shape {j_bound_length, i_bound_length}"
+        ) from exc
+
+
+def get_domain_indices(ij_bounds, conus_indices):
+    """
+    Get the domain indices for a subset grid from a larger grid. Typically this larger
+    grid will be either the CONUS1 or CONUS2 grids.
+
+    Parameters
+    ----------
+    ij_bounds : tuple
+        (imin, jmin, imax, jmax) for the subset domain relative to the larger domain.
+        Typically this larger domain is CONUS1 or CONUS2.
+    conus_indices : tuple
+        (i, j) indices cooresponding to the grid cell in the larger domain. Typically
+        this larger domain is CONUS1 or CONUS2.
+
+    Returns
+    -------
+    domain_indices : tuple
+        (i, j) indices cooresponding to the grid cell in the subset domain.
+    """
+    mapped_j = int(conus_indices[1]) - ij_bounds[1]  # subtract jmin
+    mapped_i = int(conus_indices[0]) - ij_bounds[0]  # subtract imin
+
+    return (mapped_i, mapped_j)

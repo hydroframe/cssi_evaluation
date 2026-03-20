@@ -1,8 +1,8 @@
 # Hydrologic Model Evaluation Framework
 
-This repository contains a hydrologic model evaluation framework for comparing modeled outputs against observations and reference datasets at national scale. The goal is not only to help users find data, but to provide a structured, reproducible workflow for model evaluation and benchmarking across hydrologic models, variables, and spatial scales.
+This repository contains a hydrologic model evaluation framework for comparing modeled outputs against observations and reference datasets at regional or national scale. The goal is not only to help users find data, but to provide a structured, reproducible workflow for model evaluation and benchmarking across hydrologic models, variables, and spatial scales.
 
-This effort builds on earlier NSF-supported work from the HydroGEN and HydroFrame projects. Those projects focused on building and serving large-scale hydrologic modeling capabilities. In that work, it became clear that community-scale options for evaluating national and regional model outputs remain limited. `HydroData` was initially developed to meet internal project needs for data access, but broader engagement showed a clear need for a framework that connects those data resources to evaluation workflows. This repository, aka `cssi_evaluation`, addresses that need.
+This effort builds on earlier NSF-supported work from the [HydroGEN](https://hydro-generation.org/) and [HydroFrame](https://hydroframe.org/) projects. Those projects focused on building and serving large-scale hydrologic modeling capabilities. In that work, it became clear that community-scale options for evaluating national and regional model outputs remain limited. [HydroData](https://hydroframe.org/hydrodata) was initially developed to meet internal project needs for data access, but broader engagement showed a clear need for a framework that connects those data resources to evaluation workflows. This repository, aka `cssi_evaluation`, addresses that need.
 
 ## What this framework does
 
@@ -24,16 +24,17 @@ We have started developing this framework as a **Python** package to facilitate 
 
 Future development is expected to add both additional site-based datasets and gridded remote-sensing datasets.
 
-HydroData-related packages such as `hf_hydrodata` and `subsettools` are external dependencies used by this framework. They are not part of the source tree in this repository, but they are important data-access inputs, especially for the ParFlow-oriented workflow. Using those packages allows acquisition of comparison datasets to remain reproducible in code.
+HydroData-related packages such as [hf_hydrodata](https://hf-hydrodata.readthedocs.io/en/latest/) and [SubsetTools](https://hydroframesubsettools.readthedocs.io/en/latest/) are external dependencies used by this framework. They are not part of the source tree in this repository, but they are important data-access inputs, especially for the ParFlow-oriented workflow. Using those packages allows acquisition of comparison datasets to remain reproducible in code.
 
 ## How users interact with the framework
 
 Users primarily interact with the package through Python functions and example notebooks. Typical workflows allow a user to define:
 
-- set up environment with required packages
-- define a domain of interest by HUC, latitude/longitude bounding box, or upstream drainage area
-- define a time range for evaluation
-- select one or more observational variables to compare against model output
+- Set up environment with required packages
+- Define a domain of interest by HUC, latitude/longitude bounding box, or upstream drainage area
+- Define a time range for evaluation
+- Select one or more observational variables to compare against model output
+- Provide model output in the required data model format
 
 The package includes shared statistical metrics such as RMSE, MSE, Pearson correlation, Spearman rank correlation, Nash-Sutcliffe Efficiency, Kling-Gupta Efficiency, R-squared, bias, percent bias, absolute relative bias, total difference, and Condon category. It also includes plotting utilities for site-level time series and mapped summaries of evaluation metrics across sites.
 

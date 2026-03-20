@@ -1,7 +1,7 @@
 """
 Plotting utilities.
 
-Functions for visualizing model–observation comparisons, including
+Functions for visualizing model-observation comparisons, including
 time series plots, scatter plots, spatial maps, and evaluation diagrams.
 """
 
@@ -16,19 +16,11 @@ time series plots, scatter plots, spatial maps, and evaluation diagrams.
 # nwm_utils.plot_grid_vector_data()
 # plots.plot_metric_map()
 # plots.plot_obs_locations()
-
-
-# From Amy's plots.py
-
-"""Functions to support plotting within the model evaluation module."""
-
 import os
-import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 from matplotlib.lines import Line2D
-import matplotlib.font_manager as fm
 import xarray as xr
 import geopandas as gpd
 import holoviews as hv
@@ -60,12 +52,6 @@ CONDON_LABELS = [
     "Low bias, poor shape",
     "High bias, poor shape",
 ]
-
-
-STATES_SHP = "/hydrodata/national_mapping/NaturalEarth/US_states.shp"
-
-font_prop = fm.FontProperties(fname="Roboto-Regular.ttf", size=7.9)
-legend_tick_prop = fm.FontProperties(fname="Roboto-Regular.ttf", size=6.5)
 
 
 def plot_obs_locations(obs_metadata_df, mask, file_path):
@@ -113,29 +99,28 @@ def plot_obs_locations(obs_metadata_df, mask, file_path):
 
 def plot_time_series(
     obs_data_df,
-    parflow_data_df,
+    model_data_df,
     obs_metadata_df,
     variable,
     site_list=None,
     output_dir=".",
 ):
     """
-    Plot a time series of ParFlow vs. observations for each site.
+    Plot a time series of model results vs. observations for each site.
 
     Parameters
     ----------
     obs_data_df : DataFrame
         DataFrame containing the time series observartions for each filtered site for the
-        requested time range. One column per site and one row per timestep. This is
-        output from the function `get_observations`.
-    parflow_data_df : DataFrame
-        DataFrame containing the time series observartions for each matched-site-grid-cell
+        requested time range. One column per site and one row per timestep.
+    model_data_df : DataFrame
+        DataFrame containing the time series observartions for each matched-site-region
         for the requested time range. The columns represent each site location requested
-        and the rows contain the time series from the ParFlow grid cell that contains
-        that site. This is output from the function `get_parflow_output`.
+        and the rows contain the time series from the model grid cell that contains
+        that site.
     obs_metadata_df : DataFrame
         DataFrame with one row per filtered site, containing location and site attribute
-        information. This is output from the function `get_observations`.
+        information.
     variable : str
         Type of variable being compared and plotted (ie. 'streamflow', 'water_table_depth', 'swe')
     site_list : list of str; default=None
@@ -169,7 +154,7 @@ def plot_time_series(
 
         # Get time series for a single site
         obs_data = obs_data_df.loc[:, [site_id]]
-        pf_data = parflow_data_df.loc[:, [site_id]]
+        pf_data = model_data_df.loc[:, [site_id]]
 
         # Format dates for x-axis
         dt_series = pd.to_datetime(obs_data_df["date"])
@@ -180,7 +165,7 @@ def plot_time_series(
 
         plt.gca().xaxis.set_major_formatter(mdates.DateFormatter("%Y-%m-%d %H:%M"))
 
-        ax.plot(dt_list, pf_data, label="ParFlow")
+        ax.plot(dt_list, pf_data, label="Model")
         ax.plot(dt_list, obs_data, label="Observation")
         ax.set_xticks(ax.get_xticks()[::3])
         ax.legend()
@@ -200,25 +185,24 @@ def plot_time_series(
 
 
 def plot_compare_scatter(
-    obs_data_df, parflow_data_df, variable, log_scale=False, output_dir="."
+    obs_data_df, model_data_df, variable, log_scale=False, output_dir="."
 ):
     """
-    Plot a time series of ParFlow vs. observations for each site.
+    Plot a time series of model vs. observations for each site.
 
     Parameters
     ----------
     obs_data_df : DataFrame
         DataFrame containing the time series observartions for each filtered site for the
-        requested time range. One column per site and one row per timestep. This is
-        output from the function `get_observations`.
-    parflow_data_df : DataFrame
+        requested time range. One column per site and one row per timestep.
+    model_data_df : DataFrame
         DataFrame containing the time series observartions for each matched-site-grid-cell
         for the requested time range. The columns represent each site location requested
-        and the rows contain the time series from the ParFlow grid cell that contains
-        that site. This is output from the function `get_parflow_output`.
+        and the rows contain the time series from the model grid cell that contains
+        that site.
     obs_metadata_df : DataFrame
         DataFrame with one row per filtered site, containing location and site attribute
-        information. This is output from the function `get_observations`.
+        information.
     variable : str
         Type of variable being compared and plotted (ie. 'streamflow', 'water_table_depth', 'swe')
     log_scale : bool; default=False
@@ -238,7 +222,7 @@ def plot_compare_scatter(
     # Calculate mean values per site
     obs_mean = pd.DataFrame(obs_data_df.iloc[:, 1:].mean(axis=0)).reset_index()
     obs_mean.columns = ["site_id", "obs_mean"]
-    pf_mean = pd.DataFrame(parflow_data_df.iloc[:, 1:].mean(axis=0)).reset_index()
+    pf_mean = pd.DataFrame(model_data_df.iloc[:, 1:].mean(axis=0)).reset_index()
     pf_mean.columns = ["site_id", "pf_mean"]
     merged_mean = pd.merge(obs_mean, pf_mean, on="site_id")
 
@@ -257,9 +241,9 @@ def plot_compare_scatter(
     ax.xaxis.set_tick_params(labelsize=16)
     ax.yaxis.set_tick_params(labelsize=16)
 
-    plt.ylabel("ParFlow", fontsize=18)
+    plt.ylabel("Model", fontsize=18)
     plt.xlabel("Observations", fontsize=18)
-    plt.title(f"ParFlow vs. observations comparison: {variable}", fontsize=20)
+    plt.title(f"Model vs. observations comparison: {variable}", fontsize=20)
     plt.savefig(f"{output_dir}/{variable}_comparison_scatter.png", bbox_inches="tight")
 
 
@@ -543,9 +527,6 @@ def plot_sites_within_domain(gdf_sites, domain_gdf, zoom_start=10):
     Returns:
     - folium.Map object ready to display.
     """
-    import folium
-    import geopandas as gpd
-
     # Ensure CRS compatibility
     if gdf_sites.crs != domain_gdf.crs:
         gdf_sites = gdf_sites.to_crs(domain_gdf.crs)
@@ -556,12 +537,10 @@ def plot_sites_within_domain(gdf_sites, domain_gdf, zoom_start=10):
 
     # Candidate column names (ordered by preference)
     site_name_col = find_column(
-        gdf_sites.columns,
-        ['site_name', 'station_name', 'name', 'Site Name']
+        gdf_sites.columns, ["site_name", "station_name", "name", "Site Name"]
     )
     site_id_col = find_column(
-        gdf_sites.columns,
-        ['site_id', 'station_id', 'site_code', 'code', 'Site Code']
+        gdf_sites.columns, ["site_id", "station_id", "site_code", "code", "Site Code"]
     )
 
     # Calculate center of the domain
@@ -581,7 +560,7 @@ def plot_sites_within_domain(gdf_sites, domain_gdf, zoom_start=10):
             location=[row.geometry.y, row.geometry.x],
             popup=f"<b>{site_name}</b><br>Site ID: {site_id}",
             tooltip=f"{site_name} ({site_id})",
-            icon=folium.Icon(color="green", icon="info-sign")
+            icon=folium.Icon(color="green", icon="info-sign"),
         ).add_to(m)
 
     # Add watershed boundary
@@ -609,78 +588,84 @@ def plot_sites_within_domain(gdf_sites, domain_gdf, zoom_start=10):
 
     return m
 
+
 def comparison_plots(df, ts_obs, ts_mod):
-    '''
+    """
     Create a set of comparison plots (timeseries overlay and scatter plot with 1:1 line)
 
     Parameters:
-    df: dataframe with combined observed and modeled timeseries for each site  
+    df: dataframe with combined observed and modeled timeseries for each site
     ts_obs (str): column heading for observed timeseries in df
     ts_mod (str): column heading for modeled timeseries in df
-    '''
+    """
 
     df = df.copy()
-    df.index.name = "date" # change the index name to "Date" for better hover tooltip display
+    df.index.name = (
+        "date"  # change the index name to "Date" for better hover tooltip display
+    )
 
     # Timeseries plot (Overlay)
     observed_plot = df.hvplot.line(
         y=ts_obs,
-        ylabel='Snow Water Equivalent (mm)',
-        xlabel='',
-        label='Observed SWE',
-        color='blue',
+        ylabel="Snow Water Equivalent (mm)",
+        xlabel="",
+        label="Observed SWE",
+        color="blue",
         line_width=2,
         width=500,
         height=400,
     )
 
     modeled_plot = df.hvplot.line(
-    y=ts_mod,
-    ylabel='Snow Water Equivalent (mm)',
-    xlabel='',
-    label='Modeled SWE',
-    color='orchid',
-    line_width=2,
-    width=500,
-    height=400,
+        y=ts_mod,
+        ylabel="Snow Water Equivalent (mm)",
+        xlabel="",
+        label="Modeled SWE",
+        color="orchid",
+        line_width=2,
+        width=500,
+        height=400,
     )
 
     # Overlay (combines both lines into a single visual object)
     timeseries_plot = (observed_plot * modeled_plot).opts(
-        title='Observed vs Modeled SWE\nDaily Time Series',
-        legend_position='top_right',
+        title="Observed vs Modeled SWE\nDaily Time Series",
+        legend_position="top_right",
     )
 
     # Scatter plot
     scatter_plot = df.hvplot.scatter(
         x=ts_obs,
         y=ts_mod,
-        xlabel='Observed SWE (mm)',
-        ylabel='Modeled SWE (mm)',
-        color='black',
+        xlabel="Observed SWE (mm)",
+        ylabel="Modeled SWE (mm)",
+        color="black",
         width=500,
         height=400,
         size=15,
-        hover_cols=['date']  # This will add the date (index) to hover tooltip
+        hover_cols=["date"],  # This will add the date (index) to hover tooltip
     )
 
     # Add 1:1 line (perfect match line)
     swe_max = max(df[ts_obs].max(), df[ts_mod].max())
-    one_to_one_line = hv.Curve(([0, swe_max], [0, swe_max])).opts(
-        color='gray',
-        line_dash='solid',
-        line_width=1,
-    ).relabel('1:1 Line')  # This is the correct way to set a label for a Curve
-    
+    one_to_one_line = (
+        hv.Curve(([0, swe_max], [0, swe_max]))
+        .opts(
+            color="gray",
+            line_dash="solid",
+            line_width=1,
+        )
+        .relabel("1:1 Line")
+    )  # This is the correct way to set a label for a Curve
+
     # Combine scatter plot and 1:1 line into an Overlay
     scatter_with_line = (scatter_plot * one_to_one_line).opts(
-        title='Observed vs Modeled SWE\nScatter with 1:1 Line',
-        legend_position='bottom_right'
+        title="Observed vs Modeled SWE\nScatter with 1:1 Line",
+        legend_position="bottom_right",
     )
-    
+
     # Combine both into a 1-row, 2-column layout
     layout = (timeseries_plot + scatter_with_line).opts(shared_axes=False)
-
 
     return layout
 
@@ -727,29 +712,33 @@ def plot_custom_scatter_SWE(
     scatter = df.hvplot.scatter(
         x=obs_col,
         y=mod_col,
-        xlabel='Observed SWE (mm)',
-        ylabel='Modeled SWE (mm)',
-        title='Observed vs. Modeled SWE at ' + obs_col,
+        xlabel="Observed SWE (mm)",
+        ylabel="Modeled SWE (mm)",
+        title="Observed vs. Modeled SWE at " + obs_col,
         size=15,
         width=500,
         height=400,
-        hover_cols=['index', 'month'],
-        color='color'
+        hover_cols=["index", "month"],
+        color="color",
     )
 
     # 1:1 line
     swe_max = max(df[obs_col].max(), df[mod_col].max())
-    one_to_one = hv.Curve(([0, swe_max], [0, swe_max])).opts(
-        color="gray",
-        line_dash="dashed",
-        line_width=1,
-    ).relabel("1:1 Line")
+    one_to_one = (
+        hv.Curve(([0, swe_max], [0, swe_max]))
+        .opts(
+            color="gray",
+            line_dash="dashed",
+            line_width=1,
+        )
+        .relabel("1:1 Line")
+    )
 
     return (scatter * one_to_one).opts(legend_position="bottom_right")
 
 
 def plot_grid_vector_data(ds_clip, data_var, time_index, shp, sites):
-    hv.extension('bokeh')
+    hv.extension("bokeh")
     da = ds_clip[data_var]
 
     # Select one timestep
@@ -760,75 +749,81 @@ def plot_grid_vector_data(ds_clip, data_var, time_index, shp, sites):
 
     # Create an interactive map plot
     clipped = da.rio.reproject("EPSG:4326")
-    clipped = clipped.rename({'x': 'longitude', 'y': 'latitude'})
+    clipped = clipped.rename({"x": "longitude", "y": "latitude"})
     hvplot_map = clipped.hvplot(
-        x='longitude',
-        y='latitude', 
+        x="longitude",
+        y="latitude",
         geo=True,
         project=True,
         tiles=gts.ESRI,
-        cmap='kbc',
+        cmap="kbc",
         alpha=0.6,
         frame_height=400,
         title=f"Snow Water Equivalent, at {pd.to_datetime(time_index).strftime('%Y-%m-%d %H:%M')}",
-        clim=(0, 300)
+        clim=(0, 300),
     )
-    
+
     shp = shp.to_crs("EPSG:4326").reset_index(drop=True)
     sites = sites.to_crs("EPSG:4326").reset_index(drop=True)
 
     # Plot the shapefile outline
-    shp_plot = shp.hvplot(
-    geo=True, project=True,
-    color='none', line_width=2
-    )
+    shp_plot = shp.hvplot(geo=True, project=True, color="none", line_width=2)
 
     # Plot sites (scatter)
     points_plot = sites.hvplot.points(
-    x='longitude', y='latitude',
-    geo=True, project=True,
-    color='red', size=100, hover_cols=['name']
+        x="longitude",
+        y="latitude",
+        geo=True,
+        project=True,
+        color="red",
+        size=100,
+        hover_cols=["name"],
     )
 
     # Combine the two by overlaying
     combined_map = (hvplot_map * shp_plot * points_plot).opts(framewise=True)
-    
+
     return combined_map
 
+
 def plot_grid_vector_monthly_data(ds_clip, data_var, shp, sites):
-    hv.extension('bokeh')
+    hv.extension("bokeh")
 
     # Create an interactive map plot
     clipped = ds_clip[data_var].rio.reproject("EPSG:4326")
-    clipped = clipped.rename({'x': 'longitude', 'y': 'latitude'})
-    
+    clipped = clipped.rename({"x": "longitude", "y": "latitude"})
+
     # Plot the shapefile outline
-    shp_plot = shp.hvplot(
-    geo=True, project=True,
-    color='none', line_width=2
-    )
+    shp_plot = shp.hvplot(geo=True, project=True, color="none", line_width=2)
 
     # Plot sites (scatter)
     points_plot = sites.hvplot.points(
-    x='longitude', y='latitude',
-    geo=True, project=True,
-    color='red', size=100, hover_cols=['name']
+        x="longitude",
+        y="latitude",
+        geo=True,
+        project=True,
+        color="red",
+        size=100,
+        hover_cols=["name"],
     )
 
     # Split into individual plots (list of plots)
     plots = []
     for t in clipped.time.values:
         base_plot = clipped.sel(time=t).hvplot(
-            x='longitude', y='latitude',
-            geo=True, project=True,
+            x="longitude",
+            y="latitude",
+            geo=True,
+            project=True,
             tiles=gts.ESRI,
             title=f'SWE (mm) on {pd.to_datetime(t).strftime("%Y-%m-%d")}',
-            frame_height=200, frame_width=300
+            frame_height=200,
+            frame_width=300,
         )
         # Overlay shapefile and points on top of SWE map
         combined_plot = base_plot * shp_plot * points_plot
         plots.append(combined_plot)
-        
+
     layout = hv.Layout(plots).cols(3)
-    
+
     return layout

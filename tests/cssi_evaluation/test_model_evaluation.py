@@ -8,10 +8,7 @@ import pandas as pd
 import subsettools
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../src")))
-
-from cssi_evaluation.utils.amys_files_just_for_reorg import (
-    model_evaluation as model_evaluation,
-)
+from cssi_evaluation.misc import get_observations, explore_available_observations
 
 
 def test_get_observations():
@@ -26,7 +23,7 @@ def test_get_observations():
     temporal_resolution = "hourly"
     variable = "streamflow"
 
-    obs_metadata_df, obs_data_df = model_evaluation.get_observations(
+    obs_metadata_df, obs_data_df = get_observations(
         mask, ij_bounds, grid, start_date, end_date, variable, temporal_resolution
     )
     assert obs_metadata_df.shape[0] == 14
@@ -47,7 +44,7 @@ def test_get_observations_nan_filter_sites_removed():
     variable = "streamflow"
 
     # Removing all-NaN observation sites
-    obs_metadata_df, obs_data_df = model_evaluation.get_observations(
+    obs_metadata_df, obs_data_df = get_observations(
         mask, ij_bounds, grid, start_date, end_date, variable, temporal_resolution
     )
 
@@ -69,7 +66,7 @@ def test_get_observations_nan_filter_sites_included():
     variable = "streamflow"
 
     # Leaving these sites in
-    obs_metadata_df, obs_data_df = model_evaluation.get_observations(
+    obs_metadata_df, obs_data_df = get_observations(
         mask,
         ij_bounds,
         grid,
@@ -123,7 +120,7 @@ def test_explore_available_observations():
     start_date = "2003-04-01 01:00:00"
     end_date = "2003-04-03 00:00:00"
 
-    obs_available_metadata_df = model_evaluation.explore_available_observations(
+    obs_available_metadata_df = explore_available_observations(
         mask, ij_bounds, grid, date_start=start_date, date_end=end_date
     )
 
