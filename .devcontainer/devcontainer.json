@@ -1,20 +1,21 @@
 {
-  "name": "CSSI Evaluation Workshop",
-  "image": "mcr.microsoft.com/devcontainers/miniconda:3",
-  // Create the conda environment (includes editable package install + notebook extras),
-  // register the Jupyter kernel, and activate the env in every new terminal session.
-  "postCreateCommand": "source /opt/conda/etc/profile.d/conda.sh && conda env create -f cssi_env.yml && conda run -n cssi_evaluation python -m ipykernel install --user --name=cssi_evaluation --display-name='Python (cssi_evaluation)' && echo 'source /opt/conda/etc/profile.d/conda.sh' >> ~/.bashrc && echo 'conda activate cssi_evaluation' >> ~/.bashrc",
+  "name": "CSSI Evaluation Dev",
+  "image": "mcr.microsoft.com/devcontainers/base:ubuntu",
+  
+  // Install Micromamba through Dev Containers Features
+  "features": {
+    "ghcr.io/devcontainers/features/micromamba:1": {
+      "version": "latest"
+    }
+  },
+
+  // Ensure the environment is created and the kernel is installed
+  "postCreateCommand": "eval \"$(micromamba shell hook --shell=bash)\" && micromamba activate base && micromamba env create -f cssi_env.yml && micromamba run -n cssi_evaluation python -m ipykernel install --user --name=cssi_evaluation --display-name='Python (cssi_evaluation)' && echo \"eval '$(micromamba shell hook --shell=bash)'\" >> ~/.bashrc && echo \"micromamba activate cssi_evaluation\" >> ~/.bashrc",
+
   "customizations": {
     "vscode": {
-      "extensions": [
-        "ms-python.python",
-        "ms-toolsai.jupyter",
-        "ms-toolsai.jupyter-keymap",
-        "ms-toolsai.vscode-jupyter-slideshow"
-      ],
       "settings": {
-        "python.defaultInterpreterPath": "/opt/conda/envs/cssi_evaluation/bin/python",
-        "jupyter.notebookFileRoot": "${workspaceFolder}"
+        "python.defaultInterpreterPath": "/home/vscode/.local/bin/python"
       }
     }
   }
