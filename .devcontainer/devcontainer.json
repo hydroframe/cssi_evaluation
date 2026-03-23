@@ -1,11 +1,9 @@
 {
   "name": "CSSI Evaluation Workshop",
   "image": "mcr.microsoft.com/devcontainers/miniconda:3",
-
   // Create the conda environment (includes editable package install + notebook extras),
   // register the Jupyter kernel, and activate the env in every new terminal session.
-  "postCreateCommand": "conda env create -f cssi_env.yml && conda run -n cssi_evaluation python -m ipykernel install --user --name=cssi_evaluation --display-name='Python (cssi_evaluation)' && echo 'conda activate cssi_evaluation' >> ~/.bashrc",
-
+  "postCreateCommand": "source /opt/conda/etc/profile.d/conda.sh && conda env create -f cssi_env.yml && conda run -n cssi_evaluation python -m ipykernel install --user --name=cssi_evaluation --display-name='Python (cssi_evaluation)' && echo 'source /opt/conda/etc/profile.d/conda.sh' >> ~/.bashrc && echo 'conda activate cssi_evaluation' >> ~/.bashrc",
   "customizations": {
     "vscode": {
       "extensions": [
