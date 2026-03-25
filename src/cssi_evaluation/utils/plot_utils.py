@@ -872,17 +872,18 @@ def plot_custom_scatter_SWE(
 
     df.index.name = "date"
 
-    # --- Add month column if needed ---
+    # compute month from index
     if highlight_months is not None:
-        if month_col not in df.columns:
-            df[month_col] = df.index.month
+        df[month_col] = df.index.month
 
         df["color"] = df[month_col].apply(
             lambda m: "teal" if m in highlight_months else "tomato"
         )
         color = "color"
+        hover_cols = ["date", month_col]
     else:
         color = "black"
+        hover_cols = ["date"]
 
     label = site_label if site_label else obs_col
 
@@ -892,11 +893,11 @@ def plot_custom_scatter_SWE(
         y="modeled",
         xlabel="Observed SWE (mm)",
         ylabel="Modeled SWE (mm)",
-        title=f"{label}: Observed vs. Modeled SWE",
+        title=f"{label} Observed vs. Modeled SWE",
         size=size,
         width=width,
         height=height,
-        hover_cols=["date", month_col] if highlight_months else ["date"],
+        hover_cols=hover_cols,
         color=color,
     )
 

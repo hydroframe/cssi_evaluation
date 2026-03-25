@@ -105,6 +105,52 @@ def modeled_swe_at_observed_peak(
     # concatenate all dataframes together and return
     return pd.concat(dfs)
 
+# def modeled_swe_at_observed_peak(
+#     observed_df: pd.DataFrame,
+#     modeled_df: pd.DataFrame,
+# ) -> pd.DataFrame:
+#     """
+#     Compare observed peak SWE to modeled SWE on the same date.
+#     Assumes both dfs have the SAME column order (stations aligned).
+#     """
+
+#     # --- Basic checks ---
+#     if not isinstance(observed_df.index, pd.DatetimeIndex):
+#         raise ValueError("observed_df must have a DatetimeIndex")
+#     if not isinstance(modeled_df.index, pd.DatetimeIndex):
+#         raise ValueError("modeled_df must have a DatetimeIndex")
+#     if len(observed_df.columns) != len(modeled_df.columns):
+#         raise ValueError("DataFrames must have the same number of columns")
+
+#     # --- Align time indices ---
+#     observed_df, modeled_df = observed_df.align(modeled_df, join="inner")
+
+#     # --- Compute water year vectorized ---
+#     water_year = compute_water_year_from_index(observed_df.index)
+
+#     results = []
+
+#     # --- Loop over station columns ---
+#     for obs_col, mod_col in zip(observed_df.columns, modeled_df.columns):
+#         dat = pd.DataFrame({
+#             "Observed": observed_df[obs_col],
+#             "Modeled": modeled_df[mod_col],
+#             "Water_Year": water_year,
+#         }).dropna()
+
+#         if dat.empty:
+#             print(f"Skipping {obs_col} (all NaN)")
+#             continue
+
+#         # --- Peak observed SWE per water year ---
+#         idx = dat.groupby("Water_Year")["Observed"].idxmax()
+#         peak = dat.loc[idx].copy()
+#         peak["Station"] = obs_col
+
+#         results.append(peak)
+
+#     return pd.concat(results)
+
 
 def modeled_vs_observed_peak_swe(
     df: pd.DataFrame, obs_swe_cols: list[str], mod_swe_cols: list[str]
