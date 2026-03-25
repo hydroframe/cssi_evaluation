@@ -12,7 +12,7 @@ time series plots, scatter plots, spatial maps, and evaluation diagrams.
 # nwm_utils.plot_custom_scatter_SWE()
 # nwm_utils.comparison_plots()
 # nwm_utils.plot_grid_vector_monthly_data()
-# nwm_utils.plot_sites_within_domain() overlaps with plot_obs_locations
+# nwm_utils.map_sites_within_watershed() overlaps with plot_obs_locations.  # IG, Mar 24,2026: I think plot_obs_locations() and plot_sites_within_domain() serve different purposes.
 # nwm_utils.plot_grid_vector_data()
 # plots.plot_metric_map()
 # plots.plot_obs_locations()
@@ -515,7 +515,7 @@ def plot_condon_diagram(metrics_df, variable, output_dir="."):
 # from Irene's nwm_utils.py
 
 
-def plot_sites_within_domain(gdf_sites, domain_gdf, zoom_start=10):
+def map_sites_within_watershed(gdf_sites, domain_gdf, zoom_start=10):
     """
     Create and return a folium map showing observation sites within a given watershed boundary.
 
