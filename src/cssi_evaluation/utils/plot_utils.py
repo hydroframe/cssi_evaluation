@@ -589,24 +589,120 @@ def map_sites_within_watershed(gdf_sites, domain_gdf, zoom_start=10):
     return m
 
 
-def comparison_plots(df, ts_obs, ts_mod):
+# def comparison_plots(df, ts_obs, ts_mod):
+#     """
+#     Create a set of comparison plots (timeseries overlay and scatter plot with 1:1 line)
+
+#     Parameters:
+#     df: dataframe with combined observed and modeled timeseries for each site
+#     ts_obs (str): column heading for observed timeseries in df
+#     ts_mod (str): column heading for modeled timeseries in df
+#     """
+
+#     df = df.copy()
+#     df.index.name = (
+#         "date"  # change the index name to "Date" for better hover tooltip display
+#     )
+
+#     # Timeseries plot (Overlay)
+#     observed_plot = df.hvplot.line(
+#         y=ts_obs,
+#         ylabel="Snow Water Equivalent (mm)",
+#         xlabel="",
+#         label="Observed SWE",
+#         color="blue",
+#         line_width=2,
+#         width=500,
+#         height=400,
+#     )
+
+#     modeled_plot = df.hvplot.line(
+#         y=ts_mod,
+#         ylabel="Snow Water Equivalent (mm)",
+#         xlabel="",
+#         label="Modeled SWE",
+#         color="orchid",
+#         line_width=2,
+#         width=500,
+#         height=400,
+#     )
+
+#     # Overlay (combines both lines into a single visual object)
+#     timeseries_plot = (observed_plot * modeled_plot).opts(
+#         title="Observed vs Modeled SWE\nDaily Time Series",
+#         legend_position="top_right",
+#     )
+
+#     # Scatter plot
+#     scatter_plot = df.hvplot.scatter(
+#         x=ts_obs,
+#         y=ts_mod,
+#         xlabel="Observed SWE (mm)",
+#         ylabel="Modeled SWE (mm)",
+#         color="black",
+#         width=500,
+#         height=400,
+#         size=15,
+#         hover_cols=["date"],  # This will add the date (index) to hover tooltip
+#     )
+
+#     # Add 1:1 line (perfect match line)
+#     swe_max = max(df[ts_obs].max(), df[ts_mod].max())
+#     one_to_one_line = (
+#         hv.Curve(([0, swe_max], [0, swe_max]))
+#         .opts(
+#             color="gray",
+#             line_dash="solid",
+#             line_width=1,
+#         )
+#         .relabel("1:1 Line")
+#     )  # This is the correct way to set a label for a Curve
+
+#     # Combine scatter plot and 1:1 line into an Overlay
+#     scatter_with_line = (scatter_plot * one_to_one_line).opts(
+#         title="Observed vs Modeled SWE\nScatter with 1:1 Line",
+#         legend_position="bottom_right",
+#     )
+
+#     # Combine both into a 1-row, 2-column layout
+#     layout = (timeseries_plot + scatter_with_line).opts(shared_axes=False)
+
+#     return layout
+
+def comparison_plots(df_obs, df_mod, obs_col, mod_col, site_label=None):
     """
-    Create a set of comparison plots (timeseries overlay and scatter plot with 1:1 line)
+    Create comparison plots (timeseries + scatter) for a given site
+    using separate observed and modeled dataframes with different column names.
 
     Parameters:
-    df: dataframe with combined observed and modeled timeseries for each site
-    ts_obs (str): column heading for observed timeseries in df
-    ts_mod (str): column heading for modeled timeseries in df
+    df_obs : DataFrame
+        Observations dataframe
+    df_mod : DataFrame
+        Modeled dataframe
+    obs_col : str
+        Column name in df_obs (e.g., '360:CO:SNTL')
+    mod_col : str
+        Column name in df_mod (e.g., '360:CO:PFCONUS1')
+    site_label : str, optional
+        Clean name for titles (e.g., '360:CO')
     """
 
-    df = df.copy()
-    df.index.name = (
-        "date"  # change the index name to "Date" for better hover tooltip display
+    # --- Combine + align ---
+    df = (
+        df_obs[[obs_col]]
+        .rename(columns={obs_col: "observed"})
+        .join(df_mod[[mod_col]].rename(columns={mod_col: "modeled"}), how="inner")
+        .dropna()
     )
 
-    # Timeseries plot (Overlay)
+    df.index.name = "date"
+
+    # Clean label for plotting
+    label = site_label if site_label else obs_col
+
+    # --- Timeseries plot ---
     observed_plot = df.hvplot.line(
-        y=ts_obs,
+        y="observed",
         ylabel="Snow Water Equivalent (mm)",
         xlabel="",
         label="Observed SWE",
@@ -617,7 +713,7 @@ def comparison_plots(df, ts_obs, ts_mod):
     )
 
     modeled_plot = df.hvplot.line(
-        y=ts_mod,
+        y="modeled",
         ylabel="Snow Water Equivalent (mm)",
         xlabel="",
         label="Modeled SWE",
@@ -627,54 +723,117 @@ def comparison_plots(df, ts_obs, ts_mod):
         height=400,
     )
 
-    # Overlay (combines both lines into a single visual object)
     timeseries_plot = (observed_plot * modeled_plot).opts(
-        title="Observed vs Modeled SWE\nDaily Time Series",
+        title=f"{label}: Observed vs Modeled SWE\nDaily Time Series",
         legend_position="top_right",
     )
 
-    # Scatter plot
+    # --- Scatter plot ---
     scatter_plot = df.hvplot.scatter(
-        x=ts_obs,
-        y=ts_mod,
+        x="observed",
+        y="modeled",
         xlabel="Observed SWE (mm)",
         ylabel="Modeled SWE (mm)",
         color="black",
         width=500,
         height=400,
         size=15,
-        hover_cols=["date"],  # This will add the date (index) to hover tooltip
+        hover_cols=["date"],
     )
 
-    # Add 1:1 line (perfect match line)
-    swe_max = max(df[ts_obs].max(), df[ts_mod].max())
+    # --- 1:1 line ---
+    swe_max = max(df["observed"].max(), df["modeled"].max())
+
     one_to_one_line = (
         hv.Curve(([0, swe_max], [0, swe_max]))
-        .opts(
-            color="gray",
-            line_dash="solid",
-            line_width=1,
-        )
+        .opts(color="gray", line_width=1)
         .relabel("1:1 Line")
-    )  # This is the correct way to set a label for a Curve
+    )
 
-    # Combine scatter plot and 1:1 line into an Overlay
     scatter_with_line = (scatter_plot * one_to_one_line).opts(
-        title="Observed vs Modeled SWE\nScatter with 1:1 Line",
+        title=f"{label}: Observed vs Modeled SWE\nScatter with 1:1 Line",
         legend_position="bottom_right",
     )
 
-    # Combine both into a 1-row, 2-column layout
+    # --- Layout ---
     layout = (timeseries_plot + scatter_with_line).opts(shared_axes=False)
 
     return layout
 
 
+# def plot_custom_scatter_SWE(
+#     df,
+#     obs_col,
+#     mod_col,
+#     *,
+#     highlight_months=None,
+#     month_col="month",
+#     size=15,
+#     width=500,
+#     height=400,
+# ):
+#     """
+#     Flexible scatter plot with optional month highlighting and 1:1 line.
+
+#     Parameters
+#     ----------
+#     df : pandas.DataFrame
+#         Input dataframe
+#     obs_col : str
+#         Column name for observed SWE
+#     mod_col : str
+#         Column name for modeled SWE
+#     highlight_months : list[int], optional
+#         Months to highlight (e.g., [10, 11])
+#     month_col : str
+#         Column containing month values
+#     """
+
+#     df = df.copy()
+
+#     # Handle highlighting
+#     if highlight_months is not None and month_col in df.columns:
+#         df["color"] = df[month_col].apply(
+#             lambda m: "teal" if m in highlight_months else "tomato"
+#         )
+#         color = "color"
+#     else:
+#         color = "black"
+
+#     scatter = df.hvplot.scatter(
+#         x=obs_col,
+#         y=mod_col,
+#         xlabel="Observed SWE (mm)",
+#         ylabel="Modeled SWE (mm)",
+#         title="Observed vs. Modeled SWE at " + obs_col,
+#         size=15,
+#         width=500,
+#         height=400,
+#         hover_cols=["index", "month"],
+#         color="color",
+#     )
+
+#     # 1:1 line
+#     swe_max = max(df[obs_col].max(), df[mod_col].max())
+#     one_to_one = (
+#         hv.Curve(([0, swe_max], [0, swe_max]))
+#         .opts(
+#             color="gray",
+#             line_dash="dashed",
+#             line_width=1,
+#         )
+#         .relabel("1:1 Line")
+#     )
+
+#     return (scatter * one_to_one).opts(legend_position="bottom_right")
+
 def plot_custom_scatter_SWE(
-    df,
+    df_obs,
+    df_mod,
     obs_col,
     mod_col,
     *,
+    site_label=None,
     highlight_months=None,
     month_col="month",
     size=15,
@@ -682,48 +841,69 @@ def plot_custom_scatter_SWE(
     height=400,
 ):
     """
-    Flexible scatter plot with optional month highlighting and 1:1 line.
+    Flexible scatter plot with optional month highlighting and 1:1 line,
+    using separate observed and modeled dataframes.
 
     Parameters
     ----------
-    df : pandas.DataFrame
-        Input dataframe
+    df_obs : pandas.DataFrame
+        Observations dataframe
+    df_mod : pandas.DataFrame
+        Modeled dataframe
     obs_col : str
         Column name for observed SWE
     mod_col : str
         Column name for modeled SWE
+    site_label : str, optional
+        Clean name for plot title
     highlight_months : list[int], optional
         Months to highlight (e.g., [10, 11])
     month_col : str
-        Column containing month values
+        Column containing month values (must exist or be derivable)
     """
 
-    df = df.copy()
+    # --- Combine + align ---
+    df = (
+        df_obs[[obs_col]]
+        .rename(columns={obs_col: "observed"})
+        .join(df_mod[[mod_col]].rename(columns={mod_col: "modeled"}), how="inner")
+        .dropna()
+    )
 
-    # Handle highlighting
-    if highlight_months is not None and month_col in df.columns:
+    df.index.name = "date"
+
+    # compute month from index
+    if highlight_months is not None:
+        df[month_col] = df.index.month
+
         df["color"] = df[month_col].apply(
             lambda m: "teal" if m in highlight_months else "tomato"
         )
         color = "color"
+        hover_cols = ["date", month_col]
     else:
         color = "black"
+        hover_cols = ["date"]
 
+    label = site_label if site_label else obs_col
+
+    # --- Scatter plot ---
     scatter = df.hvplot.scatter(
-        x=obs_col,
-        y=mod_col,
+        x="observed",
+        y="modeled",
         xlabel="Observed SWE (mm)",
         ylabel="Modeled SWE (mm)",
-        title="Observed vs. Modeled SWE at " + obs_col,
-        size=15,
-        width=500,
-        height=400,
-        hover_cols=["index", "month"],
-        color="color",
+        title=f"{label} Observed vs. Modeled SWE",
+        size=size,
+        width=width,
+        height=height,
+        hover_cols=hover_cols,
+        color=color,
     )
 
-    # 1:1 line
-    swe_max = max(df[obs_col].max(), df[mod_col].max())
+    # --- 1:1 line ---
+    swe_max = max(df["observed"].max(), df["modeled"].max())
+
     one_to_one = (
         hv.Curve(([0, swe_max], [0, swe_max]))
         .opts(
