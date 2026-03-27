@@ -177,7 +177,7 @@ def calculate_metrics(
     return metrics_df
 
 
-def report_max_dates_and_values(df, col_obs, col_mod):
+def report_max_dates_and_values(df, col_obs, col_mod):  # we may no longer need this function, but keeping it here for now just in case.
     # Ensure the index is datetime
     if not pd.api.types.is_datetime64_any_dtype(df.index):
         raise ValueError("DataFrame index must be datetime")
