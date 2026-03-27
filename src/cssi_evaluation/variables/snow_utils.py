@@ -345,34 +345,73 @@ def modeled_vs_observed_peak_swe(obs_df: pd.DataFrame, model_df: pd.DataFrame) -
 #     # concatenate all dataframes together and return
 #     return pd.concat(dfs).reset_index().drop("index", axis=1)
 
-def compute_melt_period(
+def compute_melt_period_single(
+    swe_series: pd.Series,
+    min_zero_days: int = 10
+) -> dict:
+    """
+    Compute melt period stats for a single SWE time series.
+    This is our core level function that computes melt period stats for a single station and water year. 
+    """
+
+    swe_series = pd.to_numeric(swe_series, errors="coerce").dropna()
+
+    if swe_series.empty or swe_series.max() == 0:
+        raise ValueError("Empty or zero SWE")
+
+    # Peak SWE
+    peak_date = swe_series.idxmax()
+    peak_swe = swe_series.max()
+
+    # Find melt end (first occurrence of consecutive zero days)
+    zero_mask = swe_series.loc[peak_date:] == 0
+
+    melt_end_date = None
+    count = 0
+
+    for date, is_zero in zero_mask.items():
+        if is_zero:
+            count += 1
+            if count >= min_zero_days:
+                melt_end_date = date
+                break
+        else:
+            count = 0
+
+    if melt_end_date is None:
+        raise ValueError("No melt end found")
+
+    melt_period_days = (melt_end_date - peak_date).days
+    melt_rate = peak_swe / melt_period_days if melt_period_days > 0 else None
+
+    return {
+        "peak_date": peak_date,
+        "peak_swe_m": peak_swe,
+        "melt_end_date": melt_end_date,
+        "melt_period_days": melt_period_days,
+        "melt_rate_m/d": melt_rate,
+    }
+
+def compute_melt_period_all_sites(
     swe_df: pd.DataFrame,
     min_zero_days: int = 10
 ) -> pd.DataFrame:
     """
     Computes melt period statistics for each station in a DataFrame.
-    
-    Parameters
-    ----------
-    swe_df : pd.DataFrame
-        SWE DataFrame with datetime index and one column per station.
-    min_zero_days : int
-        Minimum consecutive zero SWE days to define melt end.
-    
-    Returns
-    -------
-    pd.DataFrame
-        Melt period statistics per station:
-        columns: Station, Peak_SWE_Date, Peak_SWE_m, Melt_End_Date, Melt_Period_Days, Melt_Rate_m_per_day
+    This applies the base function to all columns in one DataFrame.
     """
+
     result = []
 
     for station in swe_df.columns:
-        swe_series = pd.to_numeric(swe_df[station], errors="coerce").dropna()
-        if swe_series.empty or swe_series.max() == 0:
-            continue
+        swe_series = swe_df[station]
+
         try:
-            stats = compute_melt_period(swe_series, min_zero_days=min_zero_days)
+            stats = compute_melt_period_single(
+                swe_series,
+                min_zero_days=min_zero_days
+            )
+
             result.append({
                 "Station": station,
                 "Peak_SWE_Date": stats["peak_date"],
@@ -381,7 +420,9 @@ def compute_melt_period(
                 "Melt_Period_Days": stats["melt_period_days"],
                 "Melt_Rate_m_per_day": stats["melt_rate_m/d"],
             })
+
         except ValueError:
+            # Skip stations with insufficient data
             continue
 
     return pd.DataFrame(result)
@@ -447,13 +488,16 @@ def compute_melt_period(
 #         "melt_rate_m/d": melt_rate,
 #     }
 
-def compute_melt_period_statistics(
+def compute_melt_period_obs_vs_model(
     obs_df: pd.DataFrame,
     model_df: pd.DataFrame,
     min_zero_days: int = 10
 ) -> pd.DataFrame:
     """
     Computes melt period statistics for each station and water year for observed and modeled SWE.
+    Note that this function uses the compute_melt_period_single function to compute melt period stats 
+    for each station and water year, and then combines the results into a single DataFrame for comparison 
+    between observed and modeled melt periods.
 
     Parameters
     ----------
@@ -498,14 +542,14 @@ def compute_melt_period_statistics(
                 continue
 
             try:
-                obs_stats = compute_melt_period(obs_series, min_zero_days=min_zero_days)
+                obs_stats = compute_melt_period_single(obs_series, min_zero_days=min_zero_days)
             except ValueError:
                 continue
 
             # Modeled SWE
             mod_series = pd.to_numeric(mod_group[station], errors="coerce").dropna()
             try:
-                mod_stats = compute_melt_period(mod_series, min_zero_days=min_zero_days)
+                mod_stats = compute_melt_period_single(mod_series, min_zero_days=min_zero_days)
             except ValueError:
                 mod_stats = {
                     "peak_date": None,

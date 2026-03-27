@@ -972,3 +972,120 @@ def plot_grid_vector_monthly_data(ds_clip, data_var, shp, sites):
 
     return layout
 
+
+def plot_scatter_melt_metrics(df):
+    """
+    Create side-by-side 1:1 scatter plots comparing observed and modeled melt metrics.
+
+    This function generates:
+    1. Melt rate comparison (m/day)
+    2. Melt period duration comparison (days)
+
+    Each subplot includes a 1:1 reference line to assess model bias.
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        Output from `compute_melt_period_obs_vs_model`, containing:
+        - Melt_Rate_m_per_day_Obs
+        - Melt_Rate_m_per_day_Mod
+        - Melt_Period_Days_Obs
+        - Melt_Period_Days_Mod
+
+    Returns
+    -------
+    None
+        Displays the figure.
+    """
+
+    import matplotlib.pyplot as plt
+
+    fig, axes = plt.subplots(1, 2, figsize=(12, 5))
+
+    # -------- Melt Rate --------
+    x = df["Melt_Rate_m_per_day_Obs"]
+    y = df["Melt_Rate_m_per_day_Mod"]
+
+    axes[0].scatter(x, y, alpha=0.7)
+
+    lims = [min(x.min(), y.min()), max(x.max(), y.max())]
+    axes[0].plot(lims, lims, 'k--')
+
+    axes[0].set_title("Melt Rate (Obs vs Model)")
+    axes[0].set_xlabel("Observed")
+    axes[0].set_ylabel("Modeled")
+    axes[0].grid(True)
+
+    # -------- Melt Duration --------
+    x = df["Melt_Period_Days_Obs"]
+    y = df["Melt_Period_Days_Mod"]
+
+    axes[1].scatter(x, y, alpha=0.7)
+
+    lims = [min(x.min(), y.min()), max(x.max(), y.max())]
+    axes[1].plot(lims, lims, 'k--')
+
+    axes[1].set_title("Melt Duration (Obs vs Model)")
+    axes[1].set_xlabel("Observed")
+    axes[1].set_ylabel("Modeled")
+    axes[1].grid(True)
+
+    plt.tight_layout()
+    plt.show()
+
+
+def plot_melt_bias_summary(df, col_obs, col_mod, title):
+    """
+    Plot melt timing bias (model - observed) sorted by magnitude,
+    and summarize early vs late melt behavior.
+
+    Early melt = model melts faster (negative bias)
+    Late melt = model melts slower (positive bias)
+    """
+
+    df = df.copy()
+    df["label"] = df["Station"] + " (" + df["Water_Year"].astype(str) + ")"
+
+    # Compute bias
+    df["diff"] = df[col_mod] - df[col_obs]
+
+    # Sort by magnitude
+    df = df.reindex(df["diff"].abs().sort_values().index)
+
+    # Classify
+    df["type"] = df["diff"].apply(lambda x: "Late melt" if x > 0 else "Early melt")
+
+    # Percentages
+    total = len(df)
+    pct_late = (df["diff"] > 0).sum() / total * 100
+    pct_early = (df["diff"] < 0).sum() / total * 100
+    mean_bias = df["diff"].mean()
+
+    # Plot
+    plt.figure(figsize=(9, 7))
+
+    colors = df["diff"].apply(lambda x: "red" if x > 0 else "blue")
+
+    plt.scatter(df["diff"], range(len(df)), c=colors)
+
+    plt.axvline(0, color="black", linestyle="--")
+
+    plt.yticks(range(len(df)), df["label"])
+    plt.xlabel("Model - Observed (days)")
+    plt.title(title)
+
+    plt.grid(True, axis="x")
+
+    # Add summary text
+    plt.text(
+        0.02,
+        0.98,
+        f"Early melt: {pct_early:.1f}%\nLate melt: {pct_late:.1f}%\nMean bias: {mean_bias:.2f} days",
+        transform=plt.gca().transAxes,
+        verticalalignment="top",
+        fontsize=10,
+        bbox=dict(facecolor="white", alpha=0.8)
+    )
+
+    plt.tight_layout()
+    plt.show()

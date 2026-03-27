@@ -201,7 +201,7 @@ def report_max_dates_and_values(df, col_obs, col_mod):  # we may no longer need 
     return summary_table
 
 
-def compute_stats(df, ts1, ts2):
+def compute_stats(df, ts1, ts2):   # we may no longer need this function, as Amy's metric_utils functions are more comprehensive, but keeping it here for now just in case.
     df = df[[f"{ts1}", f"{ts2}"]]
     df = df[
         [ts1, ts2]
@@ -250,7 +250,7 @@ def compute_stats(df, ts1, ts2):
     return stats_table
 
 
-def compute_stats_period(df, ts_obs, ts_mod, months):
+def compute_stats_period(df, ts_obs, ts_mod, months):   # we may not necessarily need this function. It is one line of code that filters the dataframe by month before calling compute_stats.  
     """
     Create a wrapper for compute_stats to filter dataframe by months before computing stats.
     For example, to compute stats for melt season (April to July), use months=[4,5,6,7].
@@ -267,3 +267,4 @@ def compute_stats_period(df, ts_obs, ts_mod, months):
     df_sub = df[df.index.month.isin(months)]
 
     return compute_stats(df_sub, ts_obs, ts_mod)
+
