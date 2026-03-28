@@ -383,3 +383,75 @@ def convert_utc_to_local(state, df):
         print(f"Timezone for state abbreviation {state_abbr} not found.")
 
     return df
+
+
+def align_dataframes_on_common_dates(
+        df_obs: pd.DataFrame, 
+        df_mod: pd.DataFrame, 
+        date_col_obs: str, 
+        date_col_mod: str,
+        drop_na: bool = True,
+        sort_by_date: bool = True
+    ) -> (pd.DataFrame, pd.DataFrame):
+    """Align two dataframes on common dates based on specified date columns.
+    Parameters    ----------
+    df_obs : pd.DataFrame
+        Observed data dataframe.
+    df_mod : pd.DataFrame
+        Modeled data dataframe.
+    date_col_obs : str
+        Column name for dates in the observed dataframe.
+    date_col_mod : str
+        Column name for dates in the modeled dataframe.
+    drop_na : bool, optional
+        Whether to drop rows with NaN values after alignment (default is True).
+    sort_by_date : bool, optional
+        Whether to sort the dataframes by date after alignment (default is True).
+    Returns
+    -------
+    pd.DataFrame, pd.DataFrame
+        Aligned dataframes based on common dates.
+    """ 
+    df_obs = df_obs.copy()
+    df_mod = df_mod.copy()
+
+    def _ensure_date_column(df: pd.DataFrame, date_col: str) -> pd.DataFrame:
+        if date_col in df.columns:
+            return df
+
+        index_name = df.index.name
+        if index_name == date_col:
+            return df.reset_index()
+
+        raise KeyError(
+            f"Date column '{date_col}' was not found in dataframe columns or index."
+        )
+
+    # Support dates stored either as explicit columns or as the dataframe index.
+    df_obs = _ensure_date_column(df_obs, date_col_obs)
+    df_mod = _ensure_date_column(df_mod, date_col_mod)
+
+    # Convert date columns to datetime if they are not already
+    df_obs[date_col_obs] = pd.to_datetime(df_obs[date_col_obs])
+    df_mod[date_col_mod] = pd.to_datetime(df_mod[date_col_mod])
+
+    # Find common dates
+    common_dates = set(df_obs[date_col_obs]).intersection(set(df_mod[date_col_mod]))
+
+    # Filter both dataframes to only include rows with common dates
+    df_obs_aligned = df_obs[df_obs[date_col_obs].isin(common_dates)]
+    df_mod_aligned = df_mod[df_mod[date_col_mod].isin(common_dates)]
+
+    if drop_na:
+        df_obs_aligned = df_obs_aligned.dropna()
+        df_mod_aligned = df_mod_aligned.dropna()
+
+    if sort_by_date:
+        df_obs_aligned = df_obs_aligned.sort_values(by=date_col_obs)
+        df_mod_aligned = df_mod_aligned.sort_values(by=date_col_mod)
+
+    # Set the date columns as the index for both dataframes
+    df_obs_aligned = df_obs_aligned.set_index(date_col_obs)
+    df_mod_aligned = df_mod_aligned.set_index(date_col_mod)
+
+    return df_obs_aligned, df_mod_aligned   

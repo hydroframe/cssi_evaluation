@@ -30,6 +30,8 @@ import geoviews as gv
 import geoviews.tile_sources as gts
 import folium
 import xyzservices.providers as xyz
+import warnings
+import numpy as np
 
 gv.extension("bokeh")
 
@@ -361,156 +363,118 @@ def plot_metric_map(mask, metrics_df, variable, metrics_list, output_dir="."):
         plt.savefig(f"{output_dir}/{variable}_map_{metric}.png", bbox_inches="tight")
 
 
-def plot_condon_diagram(metrics_df, variable, output_dir="."):
+def plot_condon_diagram(metrics_df, variable, output_dir=".", adaptive_xlim=True):
     """
     Create a Condon diagram.
 
     Parameters
     ----------
     metrics_df : DataFrame
-        DataFrame containing one row per site and one column per calculated metric. Contains
-        additional site attribute columns for lat/lon and domain grid location. Must include
-        'condon', 'spearman_rho', and 'abs_rel_bias' for this plot.
+        DataFrame containing one row per site and one column per calculated metric.
+        Must include 'condon', 'spearman_rho', and 'abs_rel_bias' for this plot.
     variable : str
-        Type of variable being compared and plotted (ie. 'streamflow', 'water_table_depth', 'swe')
-    output_dir : str; default="."
-        String path to where plots should be saved. Default is current working directory.
+        Type of variable being compared and plotted
+        (e.g., 'streamflow', 'water_table_depth', 'swe')
+    output_dir : str, default="."
+        String path to where plots should be saved.
+    adaptive_xlim : bool, default=True
+        If True, adjusts x-axis to the data while ensuring the original
+        x=1 threshold line remains visible. If False, uses 0 to 10.
 
     Returns
     -------
     None
         Saves plot to output_dir.
     """
-    # Create output directory if it does not exist
+
+    # Original Condon thresholds
+    bias_threshold = 1.0
+    rho_threshold = 0.5
+
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
 
-    df_plot = metrics_df[metrics_df["condon"] != "Undefined"]
+    # Keep only rows that can actually be plotted
+    df_plot = metrics_df.dropna(subset=["abs_rel_bias", "spearman_rho", "condon"]).copy()
 
-    fig, ax = plt.subplots(figsize=(6, 5))
+    # Remove undefined categories
+    df_plot = df_plot[df_plot["condon"] != "Undefined"].copy()
+
+    # Keep only recognized condon classes
+    df_plot = df_plot[df_plot["condon"].isin(CONDON_COLORS.keys())].copy()
+
+    fig, ax = plt.subplots(figsize=(7, 5.5))
 
     ax.scatter(
         df_plot["abs_rel_bias"],
         df_plot["spearman_rho"],
-        c=df_plot["condon"].map(CONDON_COLORS),
-        s=4,
-        zorder=1,
-        alpha=0.4,
+        c=[CONDON_COLORS[c] for c in df_plot["condon"]],
+        s=8,
+        zorder=2,
+        alpha=0.5,
+        edgecolors="none",
     )
 
     custom = [
-        Line2D(
-            [],
-            [],
-            marker=".",
-            color=CONDON_COLORS["Low bias, good shape"],
-            linestyle="None",
-        ),
-        Line2D(
-            [],
-            [],
-            marker=".",
-            color=CONDON_COLORS["High bias, good shape"],
-            linestyle="None",
-        ),
-        Line2D(
-            [],
-            [],
-            marker=".",
-            color=CONDON_COLORS["Low bias, poor shape"],
-            linestyle="None",
-        ),
-        Line2D(
-            [],
-            [],
-            marker=".",
-            color=CONDON_COLORS["High bias, poor shape"],
-            linestyle="None",
-        ),
+        Line2D([], [], marker="o", color=CONDON_COLORS["Low bias, good shape"], linestyle="None", markersize=5),
+        Line2D([], [], marker="o", color=CONDON_COLORS["High bias, good shape"], linestyle="None", markersize=5),
+        Line2D([], [], marker="o", color=CONDON_COLORS["Low bias, poor shape"], linestyle="None", markersize=5),
+        Line2D([], [], marker="o", color=CONDON_COLORS["High bias, poor shape"], linestyle="None", markersize=5),
     ]
-    legend = ax.legend(
+
+    # Put legend outside the axes
+    ax.legend(
         handles=custom,
         labels=CONDON_LABELS,
-        loc=8,
-        markerscale=1,
+        loc="lower center",
+        bbox_to_anchor=(0.5, 1.18),
+        ncol=2,
         frameon=False,
         borderpad=0,
-        labelspacing=0.4,
+        labelspacing=0.5,
+        columnspacing=1.6,
+        handletextpad=0.4,
+        fontsize=10,
     )
-    ax.add_artist(legend)
 
-    ax.vlines(1, -1, 1, colors="k")
-    ax.hlines(0.5, 0, 10, colors="k")
+    if adaptive_xlim:
+        xmax = max(df_plot["abs_rel_bias"].max() * 1.15, bias_threshold * 1.15)
+        xmax = min(xmax, 10) if xmax > 10 else xmax
+        xticks = np.linspace(0, xmax, 6)
+    else:
+        xmax = 10
+        xticks = [0, 2, 4, 6, 8, 10]
+
+    ax.vlines(bias_threshold, -1, 1, colors="k", linewidth=1)
+    ax.hlines(rho_threshold, 0, xmax, colors="k", linewidth=1)
+
     ax.set_xlabel("Absolute Relative Bias", fontsize=12)
     ax.set_ylabel("Spearman's Rho", fontsize=12)
-    ax.set_xlim(0, 10)
+    ax.set_xlim(0, xmax)
     ax.set_ylim(-1, 1)
-    ax.set_xticks([0, 2, 4, 6, 8, 10])
+    ax.set_xticks(xticks)
     ax.set_yticks([-1.0, -0.5, 0, 0.5, 1])
-    ax.tick_params(axis="both", labelsize=12)
+    ax.tick_params(axis="both", labelsize=11)
 
-    # Add text for the percentage in each category
+    # Add percentages in quadrants
     total_obs = df_plot.shape[0]
-    ax.text(
-        0,
-        0.9,
-        str(
-            round(
-                df_plot[df_plot["condon"] == "Low bias, good shape"].shape[0]
-                / total_obs
-                * 100
-            )
-        )
-        + "%",
-        weight="bold",
-        fontsize=12,
-    )
-    ax.text(
-        9.3,
-        0.9,
-        str(
-            round(
-                df_plot[df_plot["condon"] == "High bias, good shape"].shape[0]
-                / total_obs
-                * 100
-            )
-        )
-        + "%",
-        weight="bold",
-        fontsize=12,
-    )
-    ax.text(
-        0,
-        -1,
-        str(
-            round(
-                df_plot[df_plot["condon"] == "Low bias, poor shape"].shape[0]
-                / total_obs
-                * 100
-            )
-        )
-        + "%",
-        weight="bold",
-        fontsize=12,
-    )
-    ax.text(
-        9.3,
-        -1,
-        str(
-            round(
-                df_plot[df_plot["condon"] == "High bias, poor shape"].shape[0]
-                / total_obs
-                * 100
-            )
-        )
-        + "%",
-        weight="bold",
-        fontsize=12,
-    )
+    if total_obs > 0:
+        def pct(label):
+            return round(df_plot[df_plot["condon"] == label].shape[0] / total_obs * 100)
 
-    plt.title(f"{variable.capitalize()} Performance Category")
-    plt.savefig(f"{output_dir}/{variable}_condon_diagram.png", bbox_inches="tight")
+        ax.text(0.02 * xmax, 0.90, f"{pct('Low bias, good shape')}%", weight="bold", fontsize=10)
+        ax.text(0.90 * xmax, 0.90, f"{pct('High bias, good shape')}%", weight="bold", fontsize=10)
+        ax.text(0.02 * xmax, -0.95, f"{pct('Low bias, poor shape')}%", weight="bold", fontsize=10)
+        ax.text(0.90 * xmax, -0.95, f"{pct('High bias, poor shape')}%", weight="bold", fontsize=10)
 
+    ax.set_title(f"{variable.capitalize()} Performance Category", fontsize=14, pad=28)
+
+    # Leave room at top for outside legend
+    fig.subplots_adjust(top=0.82)
+
+    plt.savefig(f"{output_dir}/{variable}_condon_diagram.png", dpi=300, bbox_inches="tight")
+    plt.show()
+    plt.close()
 
 # from Irene's nwm_utils.py
 
@@ -1007,3 +971,121 @@ def plot_grid_vector_monthly_data(ds_clip, data_var, shp, sites):
     layout = hv.Layout(plots).cols(3)
 
     return layout
+
+
+def plot_scatter_melt_metrics(df):
+    """
+    Create side-by-side 1:1 scatter plots comparing observed and modeled melt metrics.
+
+    This function generates:
+    1. Melt rate comparison (m/day)
+    2. Melt period duration comparison (days)
+
+    Each subplot includes a 1:1 reference line to assess model bias.
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        Output from `compute_melt_period_obs_vs_model`, containing:
+        - Melt_Rate_m_per_day_Obs
+        - Melt_Rate_m_per_day_Mod
+        - Melt_Period_Days_Obs
+        - Melt_Period_Days_Mod
+
+    Returns
+    -------
+    None
+        Displays the figure.
+    """
+
+    import matplotlib.pyplot as plt
+
+    fig, axes = plt.subplots(1, 2, figsize=(12, 5))
+
+    # -------- Melt Rate --------
+    x = df["Melt_Rate_m_per_day_Obs"]
+    y = df["Melt_Rate_m_per_day_Mod"]
+
+    axes[0].scatter(x, y, alpha=0.7)
+
+    lims = [min(x.min(), y.min()), max(x.max(), y.max())]
+    axes[0].plot(lims, lims, 'k--')
+
+    axes[0].set_title("Melt Rate (Obs vs Model)")
+    axes[0].set_xlabel("Observed")
+    axes[0].set_ylabel("Modeled")
+    axes[0].grid(True)
+
+    # -------- Melt Duration --------
+    x = df["Melt_Period_Days_Obs"]
+    y = df["Melt_Period_Days_Mod"]
+
+    axes[1].scatter(x, y, alpha=0.7)
+
+    lims = [min(x.min(), y.min()), max(x.max(), y.max())]
+    axes[1].plot(lims, lims, 'k--')
+
+    axes[1].set_title("Melt Duration (Obs vs Model)")
+    axes[1].set_xlabel("Observed")
+    axes[1].set_ylabel("Modeled")
+    axes[1].grid(True)
+
+    plt.tight_layout()
+    plt.show()
+
+
+def plot_melt_bias_summary(df, col_obs, col_mod, title):
+    """
+    Plot melt timing bias (model - observed) sorted by magnitude,
+    and summarize early vs late melt behavior.
+
+    Early melt = model melts faster (negative bias)
+    Late melt = model melts slower (positive bias)
+    """
+
+    df = df.copy()
+    df["label"] = df["Station"] + " (" + df["Water_Year"].astype(str) + ")"
+
+    # Compute bias
+    df["diff"] = df[col_mod] - df[col_obs]
+
+    # Sort by magnitude
+    df = df.reindex(df["diff"].abs().sort_values().index)
+
+    # Classify
+    df["type"] = df["diff"].apply(lambda x: "Late melt" if x > 0 else "Early melt")
+
+    # Percentages
+    total = len(df)
+    pct_late = (df["diff"] > 0).sum() / total * 100
+    pct_early = (df["diff"] < 0).sum() / total * 100
+    mean_bias = df["diff"].mean()
+
+    # Plot
+    plt.figure(figsize=(9, 7))
+
+    colors = df["diff"].apply(lambda x: "red" if x > 0 else "blue")
+
+    plt.scatter(df["diff"], range(len(df)), c=colors)
+
+    plt.axvline(0, color="black", linestyle="--")
+
+    plt.yticks(range(len(df)), df["label"])
+    plt.xlabel("Model - Observed (days)")
+    plt.title(title)
+
+    plt.grid(True, axis="x")
+
+    # Add summary text
+    plt.text(
+        0.02,
+        0.98,
+        f"Early melt: {pct_early:.1f}%\nLate melt: {pct_late:.1f}%\nMean bias: {mean_bias:.2f} days",
+        transform=plt.gca().transAxes,
+        verticalalignment="top",
+        fontsize=10,
+        bbox=dict(facecolor="white", alpha=0.8)
+    )
+
+    plt.tight_layout()
+    plt.show()
