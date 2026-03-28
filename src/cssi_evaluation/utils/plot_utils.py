@@ -393,7 +393,7 @@ def plot_condon_diagram(metrics_df, variable, output_dir="."):
         df_plot["abs_rel_bias"],
         df_plot["spearman_rho"],
         c=df_plot["condon"].map(CONDON_COLORS),
-        s=4,
+        s=25,
         zorder=1,
         alpha=0.4,
     )
@@ -452,7 +452,7 @@ def plot_condon_diagram(metrics_df, variable, output_dir="."):
     # Add text for the percentage in each category
     total_obs = df_plot.shape[0]
     ax.text(
-        0,
+        0.1,
         0.9,
         str(
             round(
@@ -480,8 +480,8 @@ def plot_condon_diagram(metrics_df, variable, output_dir="."):
         fontsize=12,
     )
     ax.text(
-        0,
-        -1,
+        0.1,
+        -0.99,
         str(
             round(
                 df_plot[df_plot["condon"] == "Low bias, poor shape"].shape[0]
@@ -495,7 +495,7 @@ def plot_condon_diagram(metrics_df, variable, output_dir="."):
     )
     ax.text(
         9.3,
-        -1,
+        -0.99,
         str(
             round(
                 df_plot[df_plot["condon"] == "High bias, poor shape"].shape[0]
@@ -509,7 +509,7 @@ def plot_condon_diagram(metrics_df, variable, output_dir="."):
     )
 
     plt.title(f"{variable.capitalize()} Performance Category")
-    plt.savefig(f"{output_dir}/{variable}_condon_diagram.png", bbox_inches="tight")
+    plt.savefig(f"{output_dir}/{variable}_condon_diagram.png", bbox_inches="tight", dpi=300)
 
 
 # from Irene's nwm_utils.py
