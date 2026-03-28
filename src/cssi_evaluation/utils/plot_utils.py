@@ -589,6 +589,71 @@ def map_sites_within_watershed(gdf_sites, domain_gdf, zoom_start=10):
     return m
 
 
+def map_sites_from_latlon(df_sites, zoom_start=8):
+    """
+    Create and return a folium map showing observation sites using
+    latitude/longitude columns only.
+
+    Parameters
+    ----------
+    df_sites : pandas.DataFrame or GeoDataFrame
+        Table containing site locations. Must include `latitude` and `longitude`.
+        If present, site names and IDs are inferred from common column names.
+    zoom_start : int, default=8
+        Initial zoom level for the map.
+
+    Returns
+    -------
+    folium.Map
+        Interactive site map.
+    """
+
+    def find_column(columns, candidates):
+        return next((c for c in candidates if c in columns), None)
+
+    lat_col = find_column(df_sites.columns, ["latitude", "lat", "Latitude"])
+    lon_col = find_column(df_sites.columns, ["longitude", "lon", "Longitude"])
+    if lat_col is None or lon_col is None:
+        raise ValueError(
+            "df_sites must include latitude and longitude columns to create a map."
+        )
+
+    site_name_col = find_column(
+        df_sites.columns, ["site_name", "station_name", "name", "Site Name"]
+    )
+    site_id_col = find_column(
+        df_sites.columns, ["site_id", "station_id", "site_code", "code", "Site Code"]
+    )
+
+    center_lat = float(df_sites[lat_col].mean())
+    center_lon = float(df_sites[lon_col].mean())
+
+    m = folium.Map(location=[center_lat, center_lon], zoom_start=zoom_start)
+
+    for _, row in df_sites.iterrows():
+        site_name = row[site_name_col] if site_name_col else "Site"
+        site_id = row[site_id_col] if site_id_col else ""
+
+        folium.Marker(
+            location=[row[lat_col], row[lon_col]],
+            popup=f"<b>{site_name}</b><br>Site ID: {site_id}",
+            tooltip=f"{site_name} ({site_id})",
+            icon=folium.Icon(color="blue", icon="info-sign"),
+        ).add_to(m)
+
+    folium.TileLayer(
+        tiles="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/Tile/{z}/{y}/{x}",
+        attr="Esri, Maxar, Earthstar Geographics, and the GIS User Community",
+        name="Esri Imagery",
+        overlay=False,
+        control=True,
+    ).add_to(m)
+
+    folium.LayerControl(collapsed=False).add_to(m)
+
+    return m
+
+
 def comparison_plots(df, ts_obs, ts_mod):
     """
     Create a set of comparison plots (timeseries overlay and scatter plot with 1:1 line)

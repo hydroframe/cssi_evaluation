@@ -124,3 +124,82 @@ def getNWMSWE(
         print(f"\n✅ Merged modeled data saved to: {OutputFile}")
 
     return merged_df
+
+def getNWMQ(
+    gdf_sites,
+    conus_bucket_url,
+    StartDate,
+    EndDate,
+    OutputFile=None,
+):
+    """
+    Retrieve modeled NWM streamflow for multiple USGS gauges from the
+    retrospective channel-routing Zarr store.
+
+    Parameters
+    ----------
+    gdf_sites : GeoDataFrame or DataFrame
+        Table of USGS gauges to retrieve data for. Must contain a `site_id`
+        column matching the NWM `gage_id` values and ideally a `site_name`
+        column for progress messages.
+    conus_bucket_url : str
+        URL or path to the modeled NWM channel-routing Zarr dataset.
+    StartDate, EndDate : str
+        Date range to extract (YYYY-MM-DD).
+    OutputFile : str, optional
+        If provided, save the merged dataframe to CSV.
+
+    Returns
+    -------
+    merged_df : pandas.DataFrame
+        DataFrame with `date` plus one column per site_id containing modeled
+        streamflow in m3/s.
+    """
+
+    site_ids = gdf_sites["site_id"].astype(str).tolist()
+    formatted_gauge_ids = [f"{site_id:>15}".encode("ascii") for site_id in site_ids]
+
+    ds = xr.open_zarr(
+        store=conus_bucket_url,
+        consolidated=True,
+        storage_options={
+            "anon": True,
+            "client_kwargs": {"region_name": "us-east-1"},
+        },
+    )
+
+    mask = ds.gage_id.isin(formatted_gauge_ids)
+    ds_subset = ds.where(mask.compute(), drop=True)
+
+    model_long_df = (
+        ds_subset[["streamflow"]]
+        .sel(time=slice(StartDate, EndDate))
+        .streamflow.to_dataframe()
+        .reset_index()
+    )
+
+    model_long_df["gage_id"] = (
+        model_long_df["gage_id"].str.decode("utf-8").str.strip()
+    )
+    model_long_df.rename(columns={"time": "date", "gage_id": "site_id"}, inplace=True)
+    model_long_df["date"] = pd.to_datetime(model_long_df["date"])
+
+    merged_df = (
+        model_long_df.pivot(index="date", columns="site_id", values="streamflow")
+        .reset_index()
+        .sort_values("date")
+    )
+    merged_df.columns.name = None
+
+    matched_sites = [col for col in merged_df.columns if col != "date"]
+    print(f"Matched {len(matched_sites)} NWM gauges out of {len(site_ids)} requested.")
+
+    missing_sites = sorted(set(site_ids) - set(matched_sites))
+    if missing_sites:
+        print("Sites not found in NWM gage_id:", missing_sites)
+
+    if OutputFile:
+        merged_df.to_csv(OutputFile, index=False)
+        print(f"\nSaved modeled streamflow data to: {OutputFile}")
+
+    return merged_df
