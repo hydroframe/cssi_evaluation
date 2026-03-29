@@ -61,7 +61,7 @@ def plot_streamflow_diagnostics(
 
     plt.setp(ax.get_xticklabels(), rotation=45, ha="right")
 
-    # --- metrics annotation ---
+    # add metrics annotation 
     if metrics_row is not None:
         textstr = (
             f"Srho: {metrics_row['spearman_rho']:.2f}\n"
@@ -92,7 +92,7 @@ def plot_streamflow_diagnostics(
     ax.plot(p, obs_sorted, label="Observed", linewidth=2)
     ax.plot(p, mod_sorted, label="Modeled", linewidth=2, alpha=0.8)
 
-    ax.set_yscale("log")  # important!
+    ax.set_yscale("log") 
     ax.set_xlabel("Exceedance Probability")
     ax.set_ylabel("Streamflow")
     ax.set_title("Flow Duration Curve")
