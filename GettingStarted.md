@@ -1,3 +1,5 @@
+# Getting Started
+
 ## Clone the repository
 Run the following command to clone the repository and navigate into it:
 
