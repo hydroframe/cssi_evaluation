@@ -408,11 +408,10 @@ def plot_condon_diagram(metrics_df, variable, output_dir=".", adaptive_xlim=True
     ax.scatter(
         df_plot["abs_rel_bias"],
         df_plot["spearman_rho"],
-        c=[CONDON_COLORS[c] for c in df_plot["condon"]],
-        s=8,
-        zorder=2,
-        alpha=0.5,
-        edgecolors="none",
+        c=df_plot["condon"].map(CONDON_COLORS),
+        s=25,
+        zorder=1,
+        alpha=0.4,
     )
 
     custom = [
@@ -458,16 +457,65 @@ def plot_condon_diagram(metrics_df, variable, output_dir=".", adaptive_xlim=True
 
     # Add percentages in quadrants
     total_obs = df_plot.shape[0]
-    if total_obs > 0:
-        def pct(label):
-            return round(df_plot[df_plot["condon"] == label].shape[0] / total_obs * 100)
+    ax.text(
+        0.1,
+        0.9,
+        str(
+            round(
+                df_plot[df_plot["condon"] == "Low bias, good shape"].shape[0]
+                / total_obs
+                * 100
+            )
+        )
+        + "%",
+        weight="bold",
+        fontsize=12,
+    )
+    ax.text(
+        9.3,
+        0.9,
+        str(
+            round(
+                df_plot[df_plot["condon"] == "High bias, good shape"].shape[0]
+                / total_obs
+                * 100
+            )
+        )
+        + "%",
+        weight="bold",
+        fontsize=12,
+    )
+    ax.text(
+        0.1,
+        -0.99,
+        str(
+            round(
+                df_plot[df_plot["condon"] == "Low bias, poor shape"].shape[0]
+                / total_obs
+                * 100
+            )
+        )
+        + "%",
+        weight="bold",
+        fontsize=12,
+    )
+    ax.text(
+        9.3,
+        -0.99,
+        str(
+            round(
+                df_plot[df_plot["condon"] == "High bias, poor shape"].shape[0]
+                / total_obs
+                * 100
+            )
+        )
+        + "%",
+        weight="bold",
+        fontsize=12,
+    )
 
-        ax.text(0.02 * xmax, 0.90, f"{pct('Low bias, good shape')}%", weight="bold", fontsize=10)
-        ax.text(0.90 * xmax, 0.90, f"{pct('High bias, good shape')}%", weight="bold", fontsize=10)
-        ax.text(0.02 * xmax, -0.95, f"{pct('Low bias, poor shape')}%", weight="bold", fontsize=10)
-        ax.text(0.90 * xmax, -0.95, f"{pct('High bias, poor shape')}%", weight="bold", fontsize=10)
-
-    ax.set_title(f"{variable.capitalize()} Performance Category", fontsize=14, pad=28)
+    plt.title(f"{variable.capitalize()} Performance Category")
+    plt.savefig(f"{output_dir}/{variable}_condon_diagram.png", bbox_inches="tight", dpi=300)
 
     # Leave room at top for outside legend
     fig.subplots_adjust(top=0.82)
