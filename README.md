@@ -174,3 +174,7 @@ The framework is intended to grow by adding:
 - clearer workflows for users bringing their own model outputs, including both physics-based and ML-based models
 
 The long-term aim is to reduce the barrier to reproducible hydrologic model evaluation while keeping the code structure aligned with the scientific workflow.
+
+## Getting Started
+
+To get started using the framework, see the [Getting Started](./GettingStarted.md) page.

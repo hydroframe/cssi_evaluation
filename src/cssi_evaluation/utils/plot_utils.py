@@ -12,7 +12,7 @@ time series plots, scatter plots, spatial maps, and evaluation diagrams.
 # nwm_utils.plot_custom_scatter_SWE()
 # nwm_utils.comparison_plots()
 # nwm_utils.plot_grid_vector_monthly_data()
-# nwm_utils.plot_sites_within_domain() overlaps with plot_obs_locations
+# nwm_utils.map_sites_within_watershed() overlaps with plot_obs_locations.  # IG, Mar 24,2026: I think plot_obs_locations() and plot_sites_within_domain() serve different purposes.
 # nwm_utils.plot_grid_vector_data()
 # plots.plot_metric_map()
 # plots.plot_obs_locations()
@@ -30,6 +30,8 @@ import geoviews as gv
 import geoviews.tile_sources as gts
 import folium
 import xyzservices.providers as xyz
+import warnings
+import numpy as np
 
 gv.extension("bokeh")
 
@@ -361,33 +363,47 @@ def plot_metric_map(mask, metrics_df, variable, metrics_list, output_dir="."):
         plt.savefig(f"{output_dir}/{variable}_map_{metric}.png", bbox_inches="tight")
 
 
-def plot_condon_diagram(metrics_df, variable, output_dir="."):
+def plot_condon_diagram(metrics_df, variable, output_dir=".", adaptive_xlim=True):
     """
     Create a Condon diagram.
 
     Parameters
     ----------
     metrics_df : DataFrame
-        DataFrame containing one row per site and one column per calculated metric. Contains
-        additional site attribute columns for lat/lon and domain grid location. Must include
-        'condon', 'spearman_rho', and 'abs_rel_bias' for this plot.
+        DataFrame containing one row per site and one column per calculated metric.
+        Must include 'condon', 'spearman_rho', and 'abs_rel_bias' for this plot.
     variable : str
-        Type of variable being compared and plotted (ie. 'streamflow', 'water_table_depth', 'swe')
-    output_dir : str; default="."
-        String path to where plots should be saved. Default is current working directory.
+        Type of variable being compared and plotted
+        (e.g., 'streamflow', 'water_table_depth', 'swe')
+    output_dir : str, default="."
+        String path to where plots should be saved.
+    adaptive_xlim : bool, default=True
+        If True, adjusts x-axis to the data while ensuring the original
+        x=1 threshold line remains visible. If False, uses 0 to 10.
 
     Returns
     -------
     None
         Saves plot to output_dir.
     """
-    # Create output directory if it does not exist
+
+    # Original Condon thresholds
+    bias_threshold = 1.0
+    rho_threshold = 0.5
+
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
 
-    df_plot = metrics_df[metrics_df["condon"] != "Undefined"]
+    # Keep only rows that can actually be plotted
+    df_plot = metrics_df.dropna(subset=["abs_rel_bias", "spearman_rho", "condon"]).copy()
 
-    fig, ax = plt.subplots(figsize=(6, 5))
+    # Remove undefined categories
+    df_plot = df_plot[df_plot["condon"] != "Undefined"].copy()
+
+    # Keep only recognized condon classes
+    df_plot = df_plot[df_plot["condon"].isin(CONDON_COLORS.keys())].copy()
+
+    fig, ax = plt.subplots(figsize=(7, 5.5))
 
     ax.scatter(
         df_plot["abs_rel_bias"],
@@ -399,57 +415,47 @@ def plot_condon_diagram(metrics_df, variable, output_dir="."):
     )
 
     custom = [
-        Line2D(
-            [],
-            [],
-            marker=".",
-            color=CONDON_COLORS["Low bias, good shape"],
-            linestyle="None",
-        ),
-        Line2D(
-            [],
-            [],
-            marker=".",
-            color=CONDON_COLORS["High bias, good shape"],
-            linestyle="None",
-        ),
-        Line2D(
-            [],
-            [],
-            marker=".",
-            color=CONDON_COLORS["Low bias, poor shape"],
-            linestyle="None",
-        ),
-        Line2D(
-            [],
-            [],
-            marker=".",
-            color=CONDON_COLORS["High bias, poor shape"],
-            linestyle="None",
-        ),
+        Line2D([], [], marker="o", color=CONDON_COLORS["Low bias, good shape"], linestyle="None", markersize=5),
+        Line2D([], [], marker="o", color=CONDON_COLORS["High bias, good shape"], linestyle="None", markersize=5),
+        Line2D([], [], marker="o", color=CONDON_COLORS["Low bias, poor shape"], linestyle="None", markersize=5),
+        Line2D([], [], marker="o", color=CONDON_COLORS["High bias, poor shape"], linestyle="None", markersize=5),
     ]
-    legend = ax.legend(
+
+    # Put legend outside the axes
+    ax.legend(
         handles=custom,
         labels=CONDON_LABELS,
-        loc=8,
-        markerscale=1,
+        loc="lower center",
+        bbox_to_anchor=(0.5, 1.18),
+        ncol=2,
         frameon=False,
         borderpad=0,
-        labelspacing=0.4,
+        labelspacing=0.5,
+        columnspacing=1.6,
+        handletextpad=0.4,
+        fontsize=10,
     )
-    ax.add_artist(legend)
 
-    ax.vlines(1, -1, 1, colors="k")
-    ax.hlines(0.5, 0, 10, colors="k")
+    if adaptive_xlim:
+        xmax = max(df_plot["abs_rel_bias"].max() * 1.15, bias_threshold * 1.15)
+        xmax = min(xmax, 10) if xmax > 10 else xmax
+        xticks = np.linspace(0, xmax, 6)
+    else:
+        xmax = 10
+        xticks = [0, 2, 4, 6, 8, 10]
+
+    ax.vlines(bias_threshold, -1, 1, colors="k", linewidth=1)
+    ax.hlines(rho_threshold, 0, xmax, colors="k", linewidth=1)
+
     ax.set_xlabel("Absolute Relative Bias", fontsize=12)
     ax.set_ylabel("Spearman's Rho", fontsize=12)
-    ax.set_xlim(0, 10)
+    ax.set_xlim(0, xmax)
     ax.set_ylim(-1, 1)
-    ax.set_xticks([0, 2, 4, 6, 8, 10])
+    ax.set_xticks(xticks)
     ax.set_yticks([-1.0, -0.5, 0, 0.5, 1])
-    ax.tick_params(axis="both", labelsize=12)
+    ax.tick_params(axis="both", labelsize=11)
 
-    # Add text for the percentage in each category
+    # Add percentages in quadrants
     total_obs = df_plot.shape[0]
     ax.text(
         0.1,
@@ -511,11 +517,17 @@ def plot_condon_diagram(metrics_df, variable, output_dir="."):
     plt.title(f"{variable.capitalize()} Performance Category")
     plt.savefig(f"{output_dir}/{variable}_condon_diagram.png", bbox_inches="tight", dpi=300)
 
+    # Leave room at top for outside legend
+    fig.subplots_adjust(top=0.82)
+
+    plt.savefig(f"{output_dir}/{variable}_condon_diagram.png", dpi=300, bbox_inches="tight")
+    plt.show()
+    plt.close()
 
 # from Irene's nwm_utils.py
 
 
-def plot_sites_within_domain(gdf_sites, domain_gdf, zoom_start=10):
+def map_sites_within_watershed(gdf_sites, domain_gdf, zoom_start=10):
     """
     Create and return a folium map showing observation sites within a given watershed boundary.
 
@@ -589,24 +601,120 @@ def plot_sites_within_domain(gdf_sites, domain_gdf, zoom_start=10):
     return m
 
 
-def comparison_plots(df, ts_obs, ts_mod):
+# def comparison_plots(df, ts_obs, ts_mod):
+#     """
+#     Create a set of comparison plots (timeseries overlay and scatter plot with 1:1 line)
+
+#     Parameters:
+#     df: dataframe with combined observed and modeled timeseries for each site
+#     ts_obs (str): column heading for observed timeseries in df
+#     ts_mod (str): column heading for modeled timeseries in df
+#     """
+
+#     df = df.copy()
+#     df.index.name = (
+#         "date"  # change the index name to "Date" for better hover tooltip display
+#     )
+
+#     # Timeseries plot (Overlay)
+#     observed_plot = df.hvplot.line(
+#         y=ts_obs,
+#         ylabel="Snow Water Equivalent (mm)",
+#         xlabel="",
+#         label="Observed SWE",
+#         color="blue",
+#         line_width=2,
+#         width=500,
+#         height=400,
+#     )
+
+#     modeled_plot = df.hvplot.line(
+#         y=ts_mod,
+#         ylabel="Snow Water Equivalent (mm)",
+#         xlabel="",
+#         label="Modeled SWE",
+#         color="orchid",
+#         line_width=2,
+#         width=500,
+#         height=400,
+#     )
+
+#     # Overlay (combines both lines into a single visual object)
+#     timeseries_plot = (observed_plot * modeled_plot).opts(
+#         title="Observed vs Modeled SWE\nDaily Time Series",
+#         legend_position="top_right",
+#     )
+
+#     # Scatter plot
+#     scatter_plot = df.hvplot.scatter(
+#         x=ts_obs,
+#         y=ts_mod,
+#         xlabel="Observed SWE (mm)",
+#         ylabel="Modeled SWE (mm)",
+#         color="black",
+#         width=500,
+#         height=400,
+#         size=15,
+#         hover_cols=["date"],  # This will add the date (index) to hover tooltip
+#     )
+
+#     # Add 1:1 line (perfect match line)
+#     swe_max = max(df[ts_obs].max(), df[ts_mod].max())
+#     one_to_one_line = (
+#         hv.Curve(([0, swe_max], [0, swe_max]))
+#         .opts(
+#             color="gray",
+#             line_dash="solid",
+#             line_width=1,
+#         )
+#         .relabel("1:1 Line")
+#     )  # This is the correct way to set a label for a Curve
+
+#     # Combine scatter plot and 1:1 line into an Overlay
+#     scatter_with_line = (scatter_plot * one_to_one_line).opts(
+#         title="Observed vs Modeled SWE\nScatter with 1:1 Line",
+#         legend_position="bottom_right",
+#     )
+
+#     # Combine both into a 1-row, 2-column layout
+#     layout = (timeseries_plot + scatter_with_line).opts(shared_axes=False)
+
+#     return layout
+
+def comparison_plots(df_obs, df_mod, obs_col, mod_col, site_label=None):
     """
-    Create a set of comparison plots (timeseries overlay and scatter plot with 1:1 line)
+    Create comparison plots (timeseries + scatter) for a given site
+    using separate observed and modeled dataframes with different column names.
 
     Parameters:
-    df: dataframe with combined observed and modeled timeseries for each site
-    ts_obs (str): column heading for observed timeseries in df
-    ts_mod (str): column heading for modeled timeseries in df
+    df_obs : DataFrame
+        Observations dataframe
+    df_mod : DataFrame
+        Modeled dataframe
+    obs_col : str
+        Column name in df_obs (e.g., '360:CO:SNTL')
+    mod_col : str
+        Column name in df_mod (e.g., '360:CO:PFCONUS1')
+    site_label : str, optional
+        Clean name for titles (e.g., '360:CO')
     """
 
-    df = df.copy()
-    df.index.name = (
-        "date"  # change the index name to "Date" for better hover tooltip display
+    # --- Combine + align ---
+    df = (
+        df_obs[[obs_col]]
+        .rename(columns={obs_col: "observed"})
+        .join(df_mod[[mod_col]].rename(columns={mod_col: "modeled"}), how="inner")
+        .dropna()
     )
 
-    # Timeseries plot (Overlay)
+    df.index.name = "date"
+
+    # Clean label for plotting
+    label = site_label if site_label else obs_col
+
+    # --- Timeseries plot ---
     observed_plot = df.hvplot.line(
-        y=ts_obs,
+        y="observed",
         ylabel="Snow Water Equivalent (mm)",
         xlabel="",
         label="Observed SWE",
@@ -617,7 +725,7 @@ def comparison_plots(df, ts_obs, ts_mod):
     )
 
     modeled_plot = df.hvplot.line(
-        y=ts_mod,
+        y="modeled",
         ylabel="Snow Water Equivalent (mm)",
         xlabel="",
         label="Modeled SWE",
@@ -627,54 +735,117 @@ def comparison_plots(df, ts_obs, ts_mod):
         height=400,
     )
 
-    # Overlay (combines both lines into a single visual object)
     timeseries_plot = (observed_plot * modeled_plot).opts(
-        title="Observed vs Modeled SWE\nDaily Time Series",
+        title=f"{label}: Observed vs Modeled SWE\nDaily Time Series",
         legend_position="top_right",
     )
 
-    # Scatter plot
+    # --- Scatter plot ---
     scatter_plot = df.hvplot.scatter(
-        x=ts_obs,
-        y=ts_mod,
+        x="observed",
+        y="modeled",
         xlabel="Observed SWE (mm)",
         ylabel="Modeled SWE (mm)",
         color="black",
         width=500,
         height=400,
         size=15,
-        hover_cols=["date"],  # This will add the date (index) to hover tooltip
+        hover_cols=["date"],
     )
 
-    # Add 1:1 line (perfect match line)
-    swe_max = max(df[ts_obs].max(), df[ts_mod].max())
+    # --- 1:1 line ---
+    swe_max = max(df["observed"].max(), df["modeled"].max())
+
     one_to_one_line = (
         hv.Curve(([0, swe_max], [0, swe_max]))
-        .opts(
-            color="gray",
-            line_dash="solid",
-            line_width=1,
-        )
+        .opts(color="gray", line_width=1)
         .relabel("1:1 Line")
-    )  # This is the correct way to set a label for a Curve
+    )
 
-    # Combine scatter plot and 1:1 line into an Overlay
     scatter_with_line = (scatter_plot * one_to_one_line).opts(
-        title="Observed vs Modeled SWE\nScatter with 1:1 Line",
+        title=f"{label}: Observed vs Modeled SWE\nScatter with 1:1 Line",
         legend_position="bottom_right",
     )
 
-    # Combine both into a 1-row, 2-column layout
+    # --- Layout ---
     layout = (timeseries_plot + scatter_with_line).opts(shared_axes=False)
 
     return layout
 
 
+# def plot_custom_scatter_SWE(
+#     df,
+#     obs_col,
+#     mod_col,
+#     *,
+#     highlight_months=None,
+#     month_col="month",
+#     size=15,
+#     width=500,
+#     height=400,
+# ):
+#     """
+#     Flexible scatter plot with optional month highlighting and 1:1 line.
+
+#     Parameters
+#     ----------
+#     df : pandas.DataFrame
+#         Input dataframe
+#     obs_col : str
+#         Column name for observed SWE
+#     mod_col : str
+#         Column name for modeled SWE
+#     highlight_months : list[int], optional
+#         Months to highlight (e.g., [10, 11])
+#     month_col : str
+#         Column containing month values
+#     """
+
+#     df = df.copy()
+
+#     # Handle highlighting
+#     if highlight_months is not None and month_col in df.columns:
+#         df["color"] = df[month_col].apply(
+#             lambda m: "teal" if m in highlight_months else "tomato"
+#         )
+#         color = "color"
+#     else:
+#         color = "black"
+
+#     scatter = df.hvplot.scatter(
+#         x=obs_col,
+#         y=mod_col,
+#         xlabel="Observed SWE (mm)",
+#         ylabel="Modeled SWE (mm)",
+#         title="Observed vs. Modeled SWE at " + obs_col,
+#         size=15,
+#         width=500,
+#         height=400,
+#         hover_cols=["index", "month"],
+#         color="color",
+#     )
+
+#     # 1:1 line
+#     swe_max = max(df[obs_col].max(), df[mod_col].max())
+#     one_to_one = (
+#         hv.Curve(([0, swe_max], [0, swe_max]))
+#         .opts(
+#             color="gray",
+#             line_dash="dashed",
+#             line_width=1,
+#         )
+#         .relabel("1:1 Line")
+#     )
+
+#     return (scatter * one_to_one).opts(legend_position="bottom_right")
+
 def plot_custom_scatter_SWE(
-    df,
+    df_obs,
+    df_mod,
     obs_col,
     mod_col,
     *,
+    site_label=None,
     highlight_months=None,
     month_col="month",
     size=15,
@@ -682,48 +853,69 @@ def plot_custom_scatter_SWE(
     height=400,
 ):
     """
-    Flexible scatter plot with optional month highlighting and 1:1 line.
+    Flexible scatter plot with optional month highlighting and 1:1 line,
+    using separate observed and modeled dataframes.
 
     Parameters
     ----------
-    df : pandas.DataFrame
-        Input dataframe
+    df_obs : pandas.DataFrame
+        Observations dataframe
+    df_mod : pandas.DataFrame
+        Modeled dataframe
     obs_col : str
         Column name for observed SWE
     mod_col : str
         Column name for modeled SWE
+    site_label : str, optional
+        Clean name for plot title
     highlight_months : list[int], optional
         Months to highlight (e.g., [10, 11])
     month_col : str
-        Column containing month values
+        Column containing month values (must exist or be derivable)
     """
 
-    df = df.copy()
+    # --- Combine + align ---
+    df = (
+        df_obs[[obs_col]]
+        .rename(columns={obs_col: "observed"})
+        .join(df_mod[[mod_col]].rename(columns={mod_col: "modeled"}), how="inner")
+        .dropna()
+    )
 
-    # Handle highlighting
-    if highlight_months is not None and month_col in df.columns:
+    df.index.name = "date"
+
+    # compute month from index
+    if highlight_months is not None:
+        df[month_col] = df.index.month
+
         df["color"] = df[month_col].apply(
             lambda m: "teal" if m in highlight_months else "tomato"
         )
         color = "color"
+        hover_cols = ["date", month_col]
     else:
         color = "black"
+        hover_cols = ["date"]
 
+    label = site_label if site_label else obs_col
+
+    # --- Scatter plot ---
     scatter = df.hvplot.scatter(
-        x=obs_col,
-        y=mod_col,
+        x="observed",
+        y="modeled",
         xlabel="Observed SWE (mm)",
         ylabel="Modeled SWE (mm)",
-        title="Observed vs. Modeled SWE at " + obs_col,
-        size=15,
-        width=500,
-        height=400,
-        hover_cols=["index", "month"],
-        color="color",
+        title=f"{label} Observed vs. Modeled SWE",
+        size=size,
+        width=width,
+        height=height,
+        hover_cols=hover_cols,
+        color=color,
     )
 
-    # 1:1 line
-    swe_max = max(df[obs_col].max(), df[mod_col].max())
+    # --- 1:1 line ---
+    swe_max = max(df["observed"].max(), df["modeled"].max())
+
     one_to_one = (
         hv.Curve(([0, swe_max], [0, swe_max]))
         .opts(
@@ -827,3 +1019,121 @@ def plot_grid_vector_monthly_data(ds_clip, data_var, shp, sites):
     layout = hv.Layout(plots).cols(3)
 
     return layout
+
+
+def plot_scatter_melt_metrics(df):
+    """
+    Create side-by-side 1:1 scatter plots comparing observed and modeled melt metrics.
+
+    This function generates:
+    1. Melt rate comparison (m/day)
+    2. Melt period duration comparison (days)
+
+    Each subplot includes a 1:1 reference line to assess model bias.
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        Output from `compute_melt_period_obs_vs_model`, containing:
+        - Melt_Rate_m_per_day_Obs
+        - Melt_Rate_m_per_day_Mod
+        - Melt_Period_Days_Obs
+        - Melt_Period_Days_Mod
+
+    Returns
+    -------
+    None
+        Displays the figure.
+    """
+
+    import matplotlib.pyplot as plt
+
+    fig, axes = plt.subplots(1, 2, figsize=(12, 5))
+
+    # -------- Melt Rate --------
+    x = df["Melt_Rate_m_per_day_Obs"]
+    y = df["Melt_Rate_m_per_day_Mod"]
+
+    axes[0].scatter(x, y, alpha=0.7)
+
+    lims = [min(x.min(), y.min()), max(x.max(), y.max())]
+    axes[0].plot(lims, lims, 'k--')
+
+    axes[0].set_title("Melt Rate (Obs vs Model)")
+    axes[0].set_xlabel("Observed")
+    axes[0].set_ylabel("Modeled")
+    axes[0].grid(True)
+
+    # -------- Melt Duration --------
+    x = df["Melt_Period_Days_Obs"]
+    y = df["Melt_Period_Days_Mod"]
+
+    axes[1].scatter(x, y, alpha=0.7)
+
+    lims = [min(x.min(), y.min()), max(x.max(), y.max())]
+    axes[1].plot(lims, lims, 'k--')
+
+    axes[1].set_title("Melt Duration (Obs vs Model)")
+    axes[1].set_xlabel("Observed")
+    axes[1].set_ylabel("Modeled")
+    axes[1].grid(True)
+
+    plt.tight_layout()
+    plt.show()
+
+
+def plot_melt_bias_summary(df, col_obs, col_mod, title):
+    """
+    Plot melt timing bias (model - observed) sorted by magnitude,
+    and summarize early vs late melt behavior.
+
+    Early melt = model melts faster (negative bias)
+    Late melt = model melts slower (positive bias)
+    """
+
+    df = df.copy()
+    df["label"] = df["Station"] + " (" + df["Water_Year"].astype(str) + ")"
+
+    # Compute bias
+    df["diff"] = df[col_mod] - df[col_obs]
+
+    # Sort by magnitude
+    df = df.reindex(df["diff"].abs().sort_values().index)
+
+    # Classify
+    df["type"] = df["diff"].apply(lambda x: "Late melt" if x > 0 else "Early melt")
+
+    # Percentages
+    total = len(df)
+    pct_late = (df["diff"] > 0).sum() / total * 100
+    pct_early = (df["diff"] < 0).sum() / total * 100
+    mean_bias = df["diff"].mean()
+
+    # Plot
+    plt.figure(figsize=(9, 7))
+
+    colors = df["diff"].apply(lambda x: "red" if x > 0 else "blue")
+
+    plt.scatter(df["diff"], range(len(df)), c=colors)
+
+    plt.axvline(0, color="black", linestyle="--")
+
+    plt.yticks(range(len(df)), df["label"])
+    plt.xlabel("Model - Observed (days)")
+    plt.title(title)
+
+    plt.grid(True, axis="x")
+
+    # Add summary text
+    plt.text(
+        0.02,
+        0.98,
+        f"Early melt: {pct_early:.1f}%\nLate melt: {pct_late:.1f}%\nMean bias: {mean_bias:.2f} days",
+        transform=plt.gca().transAxes,
+        verticalalignment="top",
+        fontsize=10,
+        bbox=dict(facecolor="white", alpha=0.8)
+    )
+
+    plt.tight_layout()
+    plt.show()
