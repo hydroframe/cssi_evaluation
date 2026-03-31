@@ -436,22 +436,13 @@ def plot_condon_diagram(metrics_df, variable, output_dir=".", adaptive_xlim=True
         fontsize=10,
     )
 
-    if adaptive_xlim:
-        xmax = max(df_plot["abs_rel_bias"].max() * 1.15, bias_threshold * 1.15)
-        xmax = min(xmax, 10) if xmax > 10 else xmax
-        xticks = np.linspace(0, xmax, 6)
-    else:
-        xmax = 10
-        xticks = [0, 2, 4, 6, 8, 10]
-
     ax.vlines(bias_threshold, -1, 1, colors="k", linewidth=1)
-    ax.hlines(rho_threshold, 0, xmax, colors="k", linewidth=1)
+    ax.hlines(rho_threshold, 0, 10, colors="k", linewidth=1)
 
     ax.set_xlabel("Absolute Relative Bias", fontsize=12)
     ax.set_ylabel("Spearman's Rho", fontsize=12)
-    ax.set_xlim(0, xmax)
+    ax.set_xlim(0, 10)
     ax.set_ylim(-1, 1)
-    ax.set_xticks(xticks)
     ax.set_yticks([-1.0, -0.5, 0, 0.5, 1])
     ax.tick_params(axis="both", labelsize=11)
 
