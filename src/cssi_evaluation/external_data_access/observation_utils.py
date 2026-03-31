@@ -7,6 +7,7 @@ External data access functions for observations, specifically for observations n
 
 import time
 import urllib3
+import requests
 import pandas as pd
 
 pd.options.mode.chained_assignment = None
@@ -47,6 +48,133 @@ def getSNOTELData(SiteName, SiteID, StateAbb, StartDate, EndDate, OutputFolder):
 
 	dl_elapsed = time.time() - dl_start_time
 	print(f'✅ Retrieved data for {SiteName}, {SiteID} in {dl_elapsed:.2f} seconds\n')
+
+def getWSCData(station_id, start_date=None, end_date=None, resample="D", output_file=None):
+    """
+    Download daily streamflow data from a Water Survey of Canada (WSC) station
+    via the ECCC GeoMet API.
+
+    Parameters
+    ----------
+    station_id : str
+        WSC station number, e.g. '05BB001' (Bow River at Banff).
+    start_date : str or datetime-like, optional
+        Start date for subsetting (inclusive). If None, returns all available data.
+    end_date : str or datetime-like, optional
+        End date for subsetting (inclusive).
+    resample : str, default 'D'
+        Pandas resample frequency. 'D' for daily, 'h' for hourly (interpolated),
+        'W' for weekly, etc. Set to None to skip resampling.
+    output_file : str or Path, optional
+        If provided, save the resulting DataFrame to this CSV path.
+
+    Returns
+    -------
+    DataFrame
+        DataFrame with a DatetimeIndex named 'datetime' and a 'discharge_cms'
+        column (m³/s). Compatible with cssi_evaluation workflows.
+
+    Examples
+    --------
+    >>> df = getWSCData('05BB001', '2004-01-01', '2009-12-31')
+    >>> df.head()
+                discharge_cms
+    datetime
+    2004-01-01           9.84
+    2004-01-02           9.71
+    ...
+    """
+    base_url = "https://api.weather.gc.ca/collections/hydrometric-daily-mean/items"
+    page_limit = 10000
+
+    dl_start_time = time.time()
+    all_rows = []
+    offset = 0
+
+    while True:
+        params = {
+            "STATION_NUMBER": station_id,
+            "f": "json",
+            "limit": page_limit,
+            "offset": offset,
+        }
+
+        response = requests.get(base_url, params=params, timeout=60)
+        response.raise_for_status()
+
+        data = response.json()
+        features = data.get("features", [])
+
+        if not features:
+            if offset == 0:
+                raise ValueError(
+                    f"No data found for WSC station {station_id}. "
+                    "Verify the station number at "
+                    "https://wateroffice.ec.gc.ca/search/real_time_e.html"
+                )
+            break
+
+        for feat in features:
+            all_rows.append(feat.get("properties", {}))
+
+        if len(features) < page_limit:
+            break
+
+        offset += page_limit
+
+    df = pd.DataFrame(all_rows)
+
+    # Identify the date and discharge columns
+    date_col = _find_column(df.columns, ["DATE", "date", "datetime"])
+    value_col = _find_column(df.columns, ["DISCHARGE", "VALUE", "discharge_cms", "flow"])
+
+    if date_col is None or value_col is None:
+        raise ValueError(
+            f"Could not identify date/discharge columns in GeoMet response. "
+            f"Columns found: {list(df.columns)}"
+        )
+
+    df[date_col] = pd.to_datetime(df[date_col], errors="coerce")
+    df[value_col] = pd.to_numeric(df[value_col], errors="coerce")
+    df = df.dropna(subset=[date_col, value_col])
+
+    df = df.set_index(date_col).sort_index()
+    df = df[[value_col]].rename(columns={value_col: "discharge_cms"})
+
+    # Subset to date range
+    if start_date is not None:
+        df = df.loc[str(start_date):]
+    if end_date is not None:
+        df = df.loc[:str(end_date)]
+
+    # Resample
+    if resample is not None:
+        df = df.resample(resample).mean()
+        df = df.interpolate(method="time", limit_direction="both", limit=30)
+
+    df.index.name = "datetime"
+
+    dl_elapsed = time.time() - dl_start_time
+    print(
+        f"Retrieved {len(df)} records for WSC station {station_id} "
+        f"in {dl_elapsed:.2f} seconds"
+    )
+
+    if output_file is not None:
+        df.to_csv(output_file)
+        print(f"Saved to {output_file}")
+
+    return df
+
+
+def _find_column(columns, candidates):
+    """Find first matching column name (case-insensitive)."""
+    col_lower = {c.lower(): c for c in columns}
+    for candidate in candidates:
+        if candidate.lower() in col_lower:
+            return col_lower[candidate.lower()]
+    return None
+
 
 def getCCSSData(gdf, StateAbb, StartDate, EndDate, OutputFile):
 
