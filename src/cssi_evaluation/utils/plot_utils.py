@@ -1059,7 +1059,7 @@ def plot_scatter_melt_metrics(df):
     lims = [min(x.min(), y.min()), max(x.max(), y.max())]
     axes[0].plot(lims, lims, 'k--')
 
-    axes[0].set_title("Melt Rate (Obs vs Model)")
+    axes[0].set_title("Melt Rate (Obs vs Model): m/day")
     axes[0].set_xlabel("Observed")
     axes[0].set_ylabel("Modeled")
     axes[0].grid(True)
@@ -1073,7 +1073,7 @@ def plot_scatter_melt_metrics(df):
     lims = [min(x.min(), y.min()), max(x.max(), y.max())]
     axes[1].plot(lims, lims, 'k--')
 
-    axes[1].set_title("Melt Duration (Obs vs Model)")
+    axes[1].set_title("Melt Duration (Obs vs Model): days")
     axes[1].set_xlabel("Observed")
     axes[1].set_ylabel("Modeled")
     axes[1].grid(True)
