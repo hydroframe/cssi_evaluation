@@ -21,19 +21,10 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 from matplotlib.lines import Line2D
-import xarray as xr
-import geopandas as gpd
 import holoviews as hv
 import hvplot.pandas
 import hvplot.xarray
-import geoviews as gv
-import geoviews.tile_sources as gts
-import folium
-import xyzservices.providers as xyz
-import warnings
-import numpy as np
 
-gv.extension("bokeh")
 
 SITE_COLORS = {
     "stream gauge": "blue",
@@ -395,7 +386,9 @@ def plot_condon_diagram(metrics_df, variable, output_dir=".", adaptive_xlim=True
         os.makedirs(output_dir)
 
     # Keep only rows that can actually be plotted
-    df_plot = metrics_df.dropna(subset=["abs_rel_bias", "spearman_rho", "condon"]).copy()
+    df_plot = metrics_df.dropna(
+        subset=["abs_rel_bias", "spearman_rho", "condon"]
+    ).copy()
 
     # Remove undefined categories
     df_plot = df_plot[df_plot["condon"] != "Undefined"].copy()
@@ -415,10 +408,38 @@ def plot_condon_diagram(metrics_df, variable, output_dir=".", adaptive_xlim=True
     )
 
     custom = [
-        Line2D([], [], marker="o", color=CONDON_COLORS["Low bias, good shape"], linestyle="None", markersize=5),
-        Line2D([], [], marker="o", color=CONDON_COLORS["High bias, good shape"], linestyle="None", markersize=5),
-        Line2D([], [], marker="o", color=CONDON_COLORS["Low bias, poor shape"], linestyle="None", markersize=5),
-        Line2D([], [], marker="o", color=CONDON_COLORS["High bias, poor shape"], linestyle="None", markersize=5),
+        Line2D(
+            [],
+            [],
+            marker="o",
+            color=CONDON_COLORS["Low bias, good shape"],
+            linestyle="None",
+            markersize=5,
+        ),
+        Line2D(
+            [],
+            [],
+            marker="o",
+            color=CONDON_COLORS["High bias, good shape"],
+            linestyle="None",
+            markersize=5,
+        ),
+        Line2D(
+            [],
+            [],
+            marker="o",
+            color=CONDON_COLORS["Low bias, poor shape"],
+            linestyle="None",
+            markersize=5,
+        ),
+        Line2D(
+            [],
+            [],
+            marker="o",
+            color=CONDON_COLORS["High bias, poor shape"],
+            linestyle="None",
+            markersize=5,
+        ),
     ]
 
     # Put legend outside the axes
@@ -506,14 +527,19 @@ def plot_condon_diagram(metrics_df, variable, output_dir=".", adaptive_xlim=True
     )
 
     plt.title(f"{variable.capitalize()} Performance Category")
-    plt.savefig(f"{output_dir}/{variable}_condon_diagram.png", bbox_inches="tight", dpi=300)
+    plt.savefig(
+        f"{output_dir}/{variable}_condon_diagram.png", bbox_inches="tight", dpi=300
+    )
 
     # Leave room at top for outside legend
     fig.subplots_adjust(top=0.82)
 
-    plt.savefig(f"{output_dir}/{variable}_condon_diagram.png", dpi=300, bbox_inches="tight")
+    plt.savefig(
+        f"{output_dir}/{variable}_condon_diagram.png", dpi=300, bbox_inches="tight"
+    )
     plt.show()
     plt.close()
+
 
 # from Irene's nwm_utils.py
 
@@ -530,6 +556,9 @@ def map_sites_within_watershed(gdf_sites, domain_gdf, zoom_start=10):
     Returns:
     - folium.Map object ready to display.
     """
+    import geopandas as gpd
+    import folium
+
     # Ensure CRS compatibility
     if gdf_sites.crs != domain_gdf.crs:
         gdf_sites = gdf_sites.to_crs(domain_gdf.crs)
@@ -671,6 +700,7 @@ def map_sites_within_watershed(gdf_sites, domain_gdf, zoom_start=10):
 #     layout = (timeseries_plot + scatter_with_line).opts(shared_axes=False)
 
 #     return layout
+
 
 def comparison_plots(df_obs, df_mod, obs_col, mod_col, site_label=None):
     """
@@ -830,6 +860,7 @@ def comparison_plots(df_obs, df_mod, obs_col, mod_col, site_label=None):
 
 #     return (scatter * one_to_one).opts(legend_position="bottom_right")
 
+
 def plot_custom_scatter_SWE(
     df_obs,
     df_mod,
@@ -921,7 +952,11 @@ def plot_custom_scatter_SWE(
 
 
 def plot_grid_vector_data(ds_clip, data_var, time_index, shp, sites):
+    import geoviews as gv
+    import geoviews.tile_sources as gts
+
     hv.extension("bokeh")
+
     da = ds_clip[data_var]
 
     # Select one timestep
@@ -970,6 +1005,9 @@ def plot_grid_vector_data(ds_clip, data_var, time_index, shp, sites):
 
 
 def plot_grid_vector_monthly_data(ds_clip, data_var, shp, sites):
+    import geoviews as gv
+    import geoviews.tile_sources as gts
+
     hv.extension("bokeh")
 
     # Create an interactive map plot
@@ -1037,8 +1075,6 @@ def plot_scatter_melt_metrics(df):
         Displays the figure.
     """
 
-    import matplotlib.pyplot as plt
-
     fig, axes = plt.subplots(1, 2, figsize=(12, 5))
 
     # -------- Melt Rate --------
@@ -1048,7 +1084,7 @@ def plot_scatter_melt_metrics(df):
     axes[0].scatter(x, y, alpha=0.7)
 
     lims = [min(x.min(), y.min()), max(x.max(), y.max())]
-    axes[0].plot(lims, lims, 'k--')
+    axes[0].plot(lims, lims, "k--")
 
     axes[0].set_title("Melt Rate (Obs vs Model): m/day")
     axes[0].set_xlabel("Observed")
@@ -1062,7 +1098,7 @@ def plot_scatter_melt_metrics(df):
     axes[1].scatter(x, y, alpha=0.7)
 
     lims = [min(x.min(), y.min()), max(x.max(), y.max())]
-    axes[1].plot(lims, lims, 'k--')
+    axes[1].plot(lims, lims, "k--")
 
     axes[1].set_title("Melt Duration (Obs vs Model): days")
     axes[1].set_xlabel("Observed")
@@ -1123,7 +1159,7 @@ def plot_melt_bias_summary(df, col_obs, col_mod, title):
         transform=plt.gca().transAxes,
         verticalalignment="top",
         fontsize=10,
-        bbox=dict(facecolor="white", alpha=0.8)
+        bbox=dict(facecolor="white", alpha=0.8),
     )
 
     plt.tight_layout()
