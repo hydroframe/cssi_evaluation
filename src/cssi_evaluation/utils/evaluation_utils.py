@@ -86,7 +86,7 @@ def calculate_metrics(
     Parameters
     ----------
     obs_data_df : DataFrame
-        DataFrame containing the time series observartions for each filtered site for the
+        DataFrame containing the time series observations for each filtered site for the
         requested time range. One column per site and one row per timestep. This is
         output from the function `get_observations`.
     model_data_df : DataFrame
