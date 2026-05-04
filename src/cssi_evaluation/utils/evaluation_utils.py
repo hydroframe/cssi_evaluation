@@ -118,10 +118,23 @@ def calculate_metrics(
     # Initialize empty metrics DataFrame to store calculated comparison metrics.
     metrics_df = initialize_metrics_df(obs_metadata_df, metrics_list)
 
-    num_sites = obs_data_df.shape[1] - 1  # first column is 'date'
+    # Ensure datetime index for obs_data_df 
+    if "date" in obs_data_df.columns:
+        obs_data_df["date"] = pd.to_datetime(obs_data_df["date"])
+        obs_data_df = obs_data_df.set_index("date")
+    else:
+        obs_data_df.index = pd.to_datetime(obs_data_df.index)
 
-    for i in range(num_sites):
-        site_id = obs_data_df.columns[(i + 1)]
+    # --- Ensure datetime index for model_data_df ---
+    if "date" in model_data_df.columns:
+        model_data_df["date"] = pd.to_datetime(model_data_df["date"])
+        model_data_df = model_data_df.set_index("date")
+    else:
+        model_data_df.index = pd.to_datetime(model_data_df.index)
+
+    site_cols = obs_data_df.columns
+
+    for site_id in site_cols:
 
         obs_data = obs_data_df.loc[:, [site_id]].to_numpy()
         model_data = model_data_df.loc[:, [site_id]].to_numpy()
