@@ -177,4 +177,8 @@ The long-term aim is to reduce the barrier to reproducible hydrologic model eval
 
 ## Getting Started
 
-To get started using the framework, see the [Getting Started](./GettingStarted.md) page.
+To get started using the framework, see the [Getting Started](./GettingStarted.md) page.  
+
+## Acknowledgement  
+
+This project is supported by the National Science Foundation awards [2410992](https://www.nsf.gov/awardsearch/show-award/?AWD_ID=2410992) and [2410993](https://www.nsf.gov/awardsearch/show-award/?AWD_ID=2410993). Collaborative Research: Frameworks: Building a national integrated watershed evaluation framework: A community platform to improve model evaluation and decision making. Any opinions, findings, conclusions, or recommendations expressed in this material are those of the authors and do not necessarily reflect the views of the NSF.  
